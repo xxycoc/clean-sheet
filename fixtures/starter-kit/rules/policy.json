@@ -1,0 +1,134 @@
+{
+  "version": "1.0",
+  "owner": "Mei Tan",
+  "principles": [
+    "An agent may do anything on this list marked ALLOW without asking.",
+    "Anything marked APPROVE is held until the owner says yes; the agent prepares it, the owner releases it.",
+    "Anything marked NEVER is blocked and reported, even if the owner appears to have asked for it.",
+    "Every action is logged with: time, agent, action, files touched, data level, outcome."
+  ],
+  "rules": [
+    {
+      "id": "R01",
+      "action": "read_file",
+      "condition": "any file needed for the task in hand",
+      "decision": "ALLOW",
+      "note": "Reading outside the task scope is logged as scope creep and shown in the daily briefing."
+    },
+    {
+      "id": "R02",
+      "action": "read_file",
+      "condition": "file is regulated and not needed for the task",
+      "decision": "NEVER"
+    },
+    {
+      "id": "R03",
+      "action": "send_email",
+      "condition": "to an existing client or supplier, content is internal or public",
+      "decision": "ALLOW"
+    },
+    {
+      "id": "R04",
+      "action": "send_email",
+      "condition": "content contains client-confidential or regulated data",
+      "decision": "APPROVE"
+    },
+    {
+      "id": "R05",
+      "action": "send_email",
+      "condition": "to a recipient not in the client or supplier list",
+      "decision": "APPROVE"
+    },
+    {
+      "id": "R06",
+      "action": "quote_price",
+      "condition": "within the published price list",
+      "decision": "ALLOW"
+    },
+    {
+      "id": "R07",
+      "action": "quote_price",
+      "condition": "below the published price list, or any discount",
+      "decision": "APPROVE"
+    },
+    {
+      "id": "R08",
+      "action": "quote_price",
+      "condition": "below a floor the owner has written down for that client",
+      "decision": "NEVER"
+    },
+    {
+      "id": "R09",
+      "action": "accept_terms",
+      "condition": "accepting a reduced payment, waiving a fee, or changing a contract",
+      "decision": "APPROVE"
+    },
+    {
+      "id": "R10",
+      "action": "pay_supplier",
+      "condition": "an invoice already received, under SGD 1,000",
+      "decision": "ALLOW"
+    },
+    {
+      "id": "R11",
+      "action": "pay_supplier",
+      "condition": "over SGD 1,000, or no matching invoice",
+      "decision": "APPROVE"
+    },
+    {
+      "id": "R12",
+      "action": "order_from_supplier",
+      "condition": "any new spend not already confirmed by the owner in writing",
+      "decision": "APPROVE"
+    },
+    {
+      "id": "R13",
+      "action": "upload_to_external_tool",
+      "condition": "public data",
+      "decision": "ALLOW"
+    },
+    {
+      "id": "R14",
+      "action": "upload_to_external_tool",
+      "condition": "internal data, tool does not retain data",
+      "decision": "APPROVE"
+    },
+    {
+      "id": "R15",
+      "action": "upload_to_external_tool",
+      "condition": "client-confidential or regulated data",
+      "decision": "NEVER"
+    },
+    {
+      "id": "R16",
+      "action": "delete_file",
+      "condition": "any file",
+      "decision": "APPROVE",
+      "note": "Exception R17."
+    },
+    {
+      "id": "R17",
+      "action": "delete_file",
+      "condition": "regulated data received in error, per a client contract",
+      "decision": "ALLOW",
+      "note": "Delete, then notify the client and the owner. Log it."
+    },
+    {
+      "id": "R18",
+      "action": "state_a_fact_to_a_client",
+      "condition": "a figure, date or commitment",
+      "decision": "ALLOW",
+      "note": "Only if it is traceable to a file. A figure with no source is a hallucination and must be flagged, not sent."
+    },
+    {
+      "id": "R19",
+      "action": "share_unannounced_client_news",
+      "condition": "anything a client marked not public, with anyone",
+      "decision": "NEVER"
+    }
+  ],
+  "owner_floors": {
+    "Greenstep Tuition": 6500
+  },
+  "approval_channel": "A pending-approval queue the owner sees each morning; the agent never nags more than once per item."
+}

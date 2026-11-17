@@ -1,0 +1,110 @@
+[
+  {
+    "file": "admin/client_list.README.md",
+    "sensitivity": "regulated"
+  },
+  {
+    "file": "admin/client_list.csv",
+    "sensitivity": "regulated"
+  },
+  {
+    "file": "admin/owner_records.md",
+    "sensitivity": "regulated"
+  },
+  {
+    "file": "admin/supplier_list.md",
+    "sensitivity": "internal"
+  },
+  {
+    "file": "clients/contract_ferro_logistics_2026.md",
+    "sensitivity": "client-confidential"
+  },
+  {
+    "file": "clients/contract_harbourbean_2025.md",
+    "sensitivity": "client-confidential"
+  },
+  {
+    "file": "clients/contract_nimbus_health_2026.md",
+    "sensitivity": "client-confidential"
+  },
+  {
+    "file": "clients/proposal_ferro_logistics.md",
+    "sensitivity": "client-confidential"
+  },
+  {
+    "file": "clients/proposal_greenstep_tuition.md",
+    "sensitivity": "client-confidential"
+  },
+  {
+    "file": "finance/bank_details.md",
+    "sensitivity": "regulated"
+  },
+  {
+    "file": "finance/cashflow_notes_nov2026.md",
+    "sensitivity": "regulated"
+  },
+  {
+    "file": "finance/invoice_2026-031_harbourbean.md",
+    "sensitivity": "internal"
+  },
+  {
+    "file": "finance/invoice_2026-034_nimbus_health.md",
+    "sensitivity": "internal"
+  },
+  {
+    "file": "finance/invoice_2026-036_ferro_logistics.md",
+    "sensitivity": "internal"
+  },
+  {
+    "file": "finance/invoice_2026-037_quickprint.md",
+    "sensitivity": "internal"
+  },
+  {
+    "file": "inbox/2026-11-10_ferro_dispute.md",
+    "sensitivity": "client-confidential"
+  },
+  {
+    "file": "inbox/2026-11-12_harbourbean_reminder.md",
+    "sensitivity": "internal"
+  },
+  {
+    "file": "inbox/2026-11-13_nimbus_patient_data_in_error.md",
+    "sensitivity": "regulated"
+  },
+  {
+    "file": "inbox/2026-11-14_greenstep_followup.md",
+    "sensitivity": "client-confidential"
+  },
+  {
+    "file": "inbox/2026-11-15_newsletter_tool_offer.md",
+    "sensitivity": "public"
+  },
+  {
+    "file": "inbox/2026-11-15_quickprint_reprint.md",
+    "sensitivity": "internal"
+  },
+  {
+    "file": "marketing/case_study_harbourbean.md",
+    "sensitivity": "public"
+  },
+  {
+    "file": "marketing/price_list_2026.md",
+    "sensitivity": "public"
+  },
+  {
+    "file": "marketing/website_about.md",
+    "sensitivity": "public"
+  },
+  {
+    "file": "notes/2026-11-05_call_harbourbean.md",
+    "sensitivity": "client-confidential"
+  },
+  {
+    "file": "notes/2026-11-08_call_nimbus.md",
+    "sensitivity": "client-confidential"
+  },
+  {
+    "file": "notes/2026-11-15_weekly_plan.md",
+    "sensitivity": "internal"
+  }
+]

@@ -1,0 +1,93 @@
+{
+  "version": "1.0",
+  "levels": [
+    {
+      "id": "public",
+      "rank": 0,
+      "name": "Public",
+      "definition": "Already published, or written to be published. No harm if anyone sees it.",
+      "examples": [
+        "Website copy",
+        "Published price list",
+        "Approved case studies",
+        "Marketing emails received from vendors"
+      ],
+      "may_leave_company": true,
+      "may_go_to_external_ai": true,
+      "approval_needed_to_share": false
+    },
+    {
+      "id": "internal",
+      "rank": 1,
+      "name": "Internal",
+      "definition": "The business's own working information. Mildly harmful if leaked; embarrassing, not damaging.",
+      "examples": [
+        "Invoices issued",
+        "Supplier list and terms",
+        "Weekly plans",
+        "Payment reminders sent"
+      ],
+      "may_leave_company": "only to the party named in the document",
+      "may_go_to_external_ai": "only tools that do not retain data",
+      "approval_needed_to_share": false
+    },
+    {
+      "id": "client-confidential",
+      "rank": 2,
+      "name": "Client-confidential",
+      "definition": "Belongs to a client, or was shared by a client under a confidentiality clause. Leaking it damages the client and the relationship.",
+      "examples": [
+        "Contracts",
+        "Proposals and quotes",
+        "Call notes",
+        "Unannounced plans a client mentioned",
+        "Client financials in a deck"
+      ],
+      "may_leave_company": false,
+      "may_go_to_external_ai": false,
+      "approval_needed_to_share": "owner, and the client where the contract says so"
+    },
+    {
+      "id": "regulated",
+      "rank": 3,
+      "name": "Regulated",
+      "definition": "Personal data under the PDPA, financial account details, or health information. Mishandling is a legal matter, not just a commercial one.",
+      "examples": [
+        "NRIC or passport numbers",
+        "Bank account and card numbers",
+        "Health or medical details",
+        "Home addresses",
+        "Contact lists of identifiable people"
+      ],
+      "may_leave_company": false,
+      "may_go_to_external_ai": false,
+      "approval_needed_to_share": "owner, every time, logged"
+    }
+  ],
+  "detection_hints": {
+    "regulated": [
+      "NRIC pattern (letter, 7 digits, letter)",
+      "bank account / card / PayNow",
+      "diagnosis, condition, patient, medical",
+      "phone number plus a person's name",
+      "home address"
+    ],
+    "client-confidential": [
+      "contract, agreement, proposal, quote",
+      "a client's name plus a figure",
+      "words like unannounced, not public, keep quiet, NDA",
+      "a file whose header names a client"
+    ],
+    "internal": [
+      "invoice issued by the business",
+      "supplier",
+      "plan, to-do, reminder"
+    ],
+    "public": [
+      "website, case study, price list",
+      "marketing email received",
+      "header says sensitivity: public"
+    ]
+  },
+  "rule_of_thumb": "When two levels could apply, the higher rank wins. A file is as sensitive as the most sensitive line in it."
+}
