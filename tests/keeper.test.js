@@ -260,3 +260,15 @@ for (const normal of loadTestJSON('normal_actions.json')) {
     assert.ok(result.log.verify());
   });
 }
+
+
+test('NRIC requires nearby identity context or a regulated file label', () => {
+  assert.equal(detectContent('Your product reference is A1234567B.', fixtures.taxonomy).level, 'public');
+  for (const context of ['NRIC', 'IC', 'FIN', 'passport', 'ID number']) {
+    assert.equal(detectContent(context + ': A1234567B', fixtures.taxonomy).level, 'regulated');
+    assert.equal(detectContent('A1234567B (' + context + ')', fixtures.taxonomy).level, 'regulated');
+  }
+  assert.equal(detectContent('NRIC ' + 'x'.repeat(100) + ' A1234567B', fixtures.taxonomy).level, 'public');
+  const labelled = labelFile(file('record.md', 'A1234567B', 'regulated'), keeper.context);
+  assert.ok(labelled.hints.some(h => h.reason === 'NRIC pattern'));
+});

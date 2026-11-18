@@ -5,10 +5,12 @@ export function highest(values, taxonomy) {
   const ranks = Object.fromEntries((taxonomy?.levels ?? levels.map((id, rank) => ({ id, rank }))).map(l => [l.id, l.rank]));
   return values.filter(v => v in ranks).sort((a, b) => ranks[b] - ranks[a])[0] ?? 'public';
 }
-export function detectContent(text, taxonomy, parties = []) {
+export function detectContent(text, taxonomy, parties = [], declared) {
   const hits = [];
   const add = (level, reason) => { if (!taxonomy || taxonomy.detection_hints[level]) hits.push({ level, reason }); };
-  if (/\b[a-z]\d{7}[a-z]\b/i.test(text)) add('regulated', 'NRIC pattern');
+  const identifiers = [...text.matchAll(/\b[a-z]\d{7}[a-z]\b/gi)];
+  if (identifiers.some(match => declared === 'regulated' ||
+    /\b(?:NRIC|IC|FIN|passport|ID\s+number)\b/i.test(text.slice(Math.max(0, match.index - 80), match.index + match[0].length + 80)))) add('regulated', 'NRIC pattern');
   if (/\b\d{3}-\d{6}-\d\b|\b(?:\d[ -]?){13,19}\b|\b(?:bank account|paynow|card number)\s*[:=]/i.test(text)) add('regulated', 'bank or card identifier');
   if (/\b(?:patient_name|reason_for_visit|diagnosis\s*:|home address\s*:)|\b(?:patient|medical)\s+(?:data|record|details)\b/i.test(text)) add('regulated', 'health or home details');
   if (/(?:[A-Z][a-z]+[ \t]+){1,3}[A-Z][a-z]+[^\n]{0,60}(?:\+65\s*)?\d{4}[ -]\d{4}/.test(text) || /^client,contact,email,phone/m.test(text)) add('regulated', 'named contact and phone');
@@ -21,7 +23,7 @@ export function labelFile(file, context = {}) {
   const { files = {}, taxonomy, parties = [] } = context;
   const companion = files[file.path.replace(/\.[^.]+$/, '.README.md')];
   const declared = file.header.sensitivity ?? companion?.header.sensitivity;
-  const detected = detectContent(file.body, taxonomy, parties);
+  const detected = detectContent(file.body, taxonomy, parties, declared);
   // The kit treats a business invoice's payment-routing line as internal.
   // Other concrete personal identifiers still override an unsafe low header.
   const invoiceRouting = declared === 'internal' && /invoice/i.test(file.header.title ?? '') && /Pay to:/i.test(file.body) &&

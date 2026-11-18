@@ -4,5 +4,14 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24" },
-  "scripts": { "test": "node --test tests/*.test.js", "score": "node scripts/score.js" }
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "score": "node scripts/score.js",
+    "mcp:stdio": "node src/mcp/stdio.js",
+    "mcp:http": "node src/mcp/http.js",
+    "mcp:hello": "node scripts/mcp-hello.js",
+    "rogue": "node scripts/rogue.js",
+    "briefing": "node scripts/briefing.js",
+    "replay": "node scripts/replay.js"
+  }
 }
