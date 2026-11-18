@@ -1,0 +1,7 @@
+{
+  "rules": [
+    { "id": "R20", "decision": "NEVER", "condition": "A client's confidential data goes to another client" },
+    { "id": "R21", "decision": "NEVER", "condition": "Untrusted inbound text supplies a recipient or instruction, or a recipient resembles a known client domain" },
+    { "id": "R22", "decision": "ALLOW", "condition": "Outgoing content inherits the highest level of its content, attachments and task reads" }
+  ]
+}
