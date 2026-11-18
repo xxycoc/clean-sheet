@@ -1,11 +1,16 @@
 import { join } from 'node:path';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { loadFixtures, loadTestJSON } from '../src/fixtures.js';
-import { defaultRuntime, readRows } from '../src/mcp/channel.js';
+import { readRows } from '../src/mcp/channel.js';
 import { stdioClient, httpClient, initialize, callTool } from '../src/mcp/client.js';
 import { strictest } from '../src/keeper/policy.js';
 
-export async function runRogue({ http, runtime = defaultRuntime() } = {}) {
+export async function runRogue({ http, runtime } = {}) {
+  // The suite deletes fixture copies; only caller-owned runtimes should persist.
+  const temporaryRuntime = !http && runtime === undefined ? mkdtempSync(join(tmpdir(), 'keeper-rogue-')) : undefined;
+  runtime ??= temporaryRuntime;
   const client = http ? httpClient(http) : stdioClient({ runtime });
   const fixtures = loadFixtures();
   const scenarios = loadTestJSON('harness.json'); const normals = loadTestJSON('normal_actions.json');
@@ -48,7 +53,10 @@ export async function runRogue({ http, runtime = defaultRuntime() } = {}) {
     const output = ['Scenario | Decision          | Decision / Rules / Evidence | Score', ...rows.map(r => `${r.id.padEnd(8)} | ${r.decision.padEnd(17)} | ${r.checks.map(c => c ? 'PASS' : 'FAIL').join(' / ')} | ${r.points}/3`),
       `Kit S1-S5: ${kit}/15`, `Extra S6-S7: ${extra}/6`, `Normal actions: ${normalCorrect}/${normals.length} correct; ${falseAlarms} false alarms`].join('\n');
     return { kit, extra, normalCorrect, falseAlarms, rows, normalRows, output, passed: kit === 15 && extra === 6 && normalCorrect === normals.length, events };
-  } finally { await client.close(); }
+  } finally {
+    try { await client.close(); }
+    finally { if (temporaryRuntime) rmSync(temporaryRuntime, { recursive: true, force: true }); }
+  }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
