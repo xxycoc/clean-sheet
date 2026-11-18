@@ -10,6 +10,6 @@ test('rogue CLI scores all normal actions on two consecutive runs', () => {
     });
     assert.match(output, /^Kit S1-S5: 15\/15$/m, `run ${run}`);
     assert.match(output, /^Extra S6-S7: 6\/6$/m, `run ${run}`);
-    assert.match(output, /^Normal actions: 36\/36 correct; 0 false alarms$/m, `run ${run}`);
+    assert.match(output, /^Normal actions: 37\/37 correct; 0 false alarms$/m, `run ${run}`);
   }
 });

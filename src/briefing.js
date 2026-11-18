@@ -13,30 +13,39 @@ export function makeBriefing(rows, date = rows.at(-1)?.time?.slice(0, 10) ?? new
     const inferred = e.decision.evidence.map(v => v.text ?? '').join('\n').match(/Same price, SGD\s*([\d,]+)/i);
     return sum + (e.action.args.amount ?? (inferred ? Number(inferred[1].replaceAll(',', '')) : 0));
   }, 0);
-  const receivables = Math.max(0, ...[...pending.values()].filter(e => e.decision.rules.includes('R16')).flatMap(e => e.decision.evidence.flatMap(v => [...(v.text ?? '').matchAll(/Outstanding receivables:\s*SGD\s*([\d,]+)/gi)].map(m => Number(m[1].replaceAll(',', ''))))));
+  const receivables = [...pending.values()].filter(e => e.decision.rules.includes('R16')).reduce((sum, e) => {
+    const amounts = new Set(e.decision.evidence.flatMap(v => [...(v.text ?? '').matchAll(/Outstanding receivables:\s*SGD\s*([\d,]+(?:\.\d+)?)/gi)].map(m => Number(m[1].replaceAll(',', '')))));
+    return sum + [...amounts].reduce((total, amount) => total + amount, 0);
+  }, 0);
   const counts = { blocked: decisions.filter(e => e.decision === 'BLOCK').length, held: decisions.filter(e => e.decision === 'HOLD_FOR_APPROVAL').length,
     allowed: decisions.filter(e => e.decision === 'ALLOW').length, pending: pending.size, spend_at_stake_sgd: spend, receivables_at_stake_sgd: receivables,
     unnecessary_reads: allowedReads.length, refused_reads: reads.filter(e => e.decision !== 'ALLOW').length,
     unnecessary_files: [...new Set(allowedReads.map(e => e.file))], refused_files: [...new Set(reads.filter(e => e.decision !== 'ALLOW').map(e => e.file))],
     executed: day.filter(e => e.type === 'action.executed').length, notifications_queued: day.filter(e => e.type === 'notification.queued').length };
-  const rules = new Set(decisions.filter(e => e.decision === 'BLOCK').flatMap(e => e.rules));
-  const reasons = [rules.has('R15') && 'private data uploads', rules.has('R08') && 'offers below your floor', rules.has('R18') && 'unsupported figures', rules.has('R21') && 'suspicious instructions', rules.has('R20') && 'another client’s private work'].filter(Boolean);
-  const cashflow = reads.find(e => /cashflow/i.test(e.file));
-  const bank = reads.some(e => /bank_details/.test(e.file) && e.decision !== 'ALLOW');
-  const owner = reads.some(e => /owner_records/.test(e.file) && e.decision !== 'ALLOW');
+  const read_details = reads.map(e => ({ agent: e.agent, action: 'read_file', file: e.file, level: e.level, decision: e.decision, rules: e.rules }));
+  const action_details = decisions.map(e => ({ agent: e.agent, action: day.find(p => p.type === 'action.proposed' && p.id === e.id)?.tool,
+    level: e.data_level, decision: e.decision, rules: e.rules, owner_message: e.owner_message }));
   const parts = [
     `Here is your Clean Sheet update for ${date}.`,
-    `The Keeper blocked ${counts.blocked} proposed actions${reasons.length ? ` involving ${reasons.join(', ')}` : 'under your policy'}.`,
-    `${counts.pending} requests wait for your approval. Proposed spend totals SGD ${spend.toLocaleString('en-SG')}; deletion requests involve records showing SGD ${receivables.toLocaleString('en-SG')} in outstanding receivables. These are separate amounts, not a combined loss.`,
-    cashflow ? (cashflow.decision === 'ALLOW' ? 'Support read cashflow notes it did not need for the QuickPrint reply.' : 'Support requested cashflow notes it did not need for QuickPrint; that read was refused.') : `${counts.unnecessary_reads} permitted reads fell outside the declared task scope.`,
-    bank || owner ? `Requests for ${[bank && 'bank details', owner && 'owner records'].filter(Boolean).join(' and ')} were refused; no contents were returned.` : `${counts.refused_reads} out of scope reads were refused without returning file contents.`,
-    allowedReads.some(e => /proposal_ferro/.test(e.file)) ? 'Sales also read Ferro’s proposal outside its task.' : '',
-    'For blocked and pending actions, nothing was sent or changed by those actions.',
-    `${counts.executed} allowed or released actions completed locally. This is a demonstration: nothing was sent outside the workspace, and no real payment was made.`,
+    `The Keeper blocked ${counts.blocked} proposed actions and held ${counts.held} for review; ${counts.allowed} received an allow decision.`,
+    `${counts.pending} requests remain pending. Proposed spend totals SGD ${spend.toLocaleString('en-SG')}; deletion requests involve SGD ${receivables.toLocaleString('en-SG')} in outstanding receivables. These amounts describe different exposures, not a combined loss.`,
+    `Outside declared scope, ${counts.unnecessary_reads} reads were allowed and ${counts.refused_reads} were refused without returning contents.`,
+    `${counts.executed} allowed or released actions completed locally. This demonstration sends nothing outside the workspace and makes no real payments.`,
+    'Review the pending queue before approving spending or deletion. Each request records the proposed action, policy decision and supporting evidence.',
   ];
-  const fillers = ['Check the waiting requests before you approve any spending or deletion.', 'The queue keeps the reasons and source records beside each proposed action.', 'You can release a request or reject it after checking the details.', 'Routine work can continue while you review the items that need your judgment.'];
   let script = parts.join(' ');
-  for (const sentence of fillers) { if (wordCount(script) >= 140) break; if (wordCount(`${script} ${sentence}`) <= 160) script += ` ${sentence}`; }
-  return { date, script, word_count: wordCount(script), counts, video_url: null };
+  for (const e of read_details) {
+    const detail = `${e.agent}: ${e.action} ${e.file}, ${e.level}, ${e.decision} (${e.rules.join(', ')}).`;
+    if (wordCount(`${script} ${detail}`) <= 160) script += ` ${detail}`;
+  }
+  const fillers = ['The read details identify the agent, file label, decision and rules recorded in the log.',
+    'Check the source records and owner messages before deciding whether a request should proceed.',
+    'You can release a waiting request or reject it after reviewing its details.',
+    'Routine work can continue during review.', 'Review each request carefully.'];
+  for (const sentence of fillers) {
+    if (wordCount(script) >= 140) break;
+    if (wordCount(`${script} ${sentence}`) <= 160) script += ` ${sentence}`;
+  }
+  return { date, script, word_count: wordCount(script), counts, read_details, action_details, video_url: null };
 }
 export function wordCount(text) { return text.trim().split(/\s+/).length; }

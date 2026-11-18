@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, readdirSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { request } from 'node:http';
 import { once } from 'node:events';
 import { Channel, readRows } from '../src/mcp/channel.js';
 import { createHttpServer } from '../src/mcp/http.js';
@@ -11,11 +12,13 @@ import { makeBriefing } from '../src/briefing.js';
 import { verify } from '../src/keeper/log.js';
 import { runRogue } from '../scripts/rogue.js';
 import { score } from '../scripts/score.js';
-import { replay, replayServer } from '../scripts/replay.js';
+import { replay, replayServer, verifyReplay } from '../scripts/replay.js';
 
+const ownerToken = 'test-owner-token';
+const ownerFetch = (url, options = {}) => fetch(url, { ...options, headers: { Authorization: `Bearer ${ownerToken}`, ...options.headers } });
 const temporary = () => mkdtempSync(join(tmpdir(), 'keeper-w2-'));
 async function httpSetup(t) {
-  const runtime = temporary(); const channel = new Channel({ runtime }); const server = createHttpServer({ channel });
+  const runtime = temporary(); const channel = new Channel({ runtime }); const server = createHttpServer({ channel, ownerToken });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   t.after(() => server.stop());
   return { runtime, channel, server, base: `http://127.0.0.1:${server.address().port}` };
@@ -56,19 +59,19 @@ test('stdio handshake, list, ALLOW/HOLD/BLOCK, denied content and closed task', 
 test('HTTP handshake and decisions, queue release/reject, CORS, scorecard and owner endpoints', async t => {
   const { base, runtime, channel } = await httpSetup(t); const client = httpClient(base);
   const { hold } = await decisions(client);
-  const queue = await (await fetch(`${base}/api/queue`)).json(); assert.equal(queue.length, 1);
-  const release = await fetch(`${base}/api/queue/${hold.structuredContent.id}/release`, { method: 'POST' });
+  const queue = await (await ownerFetch(`${base}/api/queue`)).json(); assert.equal(queue.length, 1);
+  const release = await ownerFetch(`${base}/api/queue/${hold.structuredContent.id}/release`, { method: 'POST' });
   assert.equal(release.status, 200); assert.equal(release.headers.get('access-control-allow-origin'), '*');
   assert.ok(!existsSync(join(runtime, 'workspace/marketing/website_about.md')));
   assert.ok(existsSync('fixtures/starter-kit/data/marketing/website_about.md'));
-  assert.equal((await fetch(`${base}/api/queue/${hold.structuredContent.id}/release`, { method: 'POST' })).status, 400);
+  assert.equal((await ownerFetch(`${base}/api/queue/${hold.structuredContent.id}/release`, { method: 'POST' })).status, 400);
   const held = await callTool(client, 'send_email', { agent: 'Sales', to: 'buyer@newco.example', body: 'Thanks.' });
-  const rejected = await fetch(`${base}/api/queue/${held.structuredContent.id}/reject`, { method: 'POST' }); assert.equal(rejected.status, 200);
+  const rejected = await ownerFetch(`${base}/api/queue/${held.structuredContent.id}/reject`, { method: 'POST' }); assert.equal(rejected.status, 200);
   assert.equal(channel.audit.rows.filter(e => e.type === 'action.executed' && e.id === held.structuredContent.id).length, 0);
-  assert.equal((await (await fetch(`${base}/api/queue`)).json()).length, 0);
-  assert.equal((await (await fetch(`${base}/api/log/verify`)).json()).valid, true);
-  const scored = await (await fetch(`${base}/api/scorecard`)).json(); assert.equal(scored.kit, 15); assert.equal(scored.extra, 6); assert.equal(scored.normalCorrect, 36);
-  const briefing = await (await fetch(`${base}/api/briefing`)).json(); assert.ok(briefing.word_count >= 140 && briefing.word_count <= 160);
+  assert.equal((await (await ownerFetch(`${base}/api/queue`)).json()).length, 0);
+  assert.equal((await (await ownerFetch(`${base}/api/log/verify`)).json()).valid, true);
+  const scored = await (await ownerFetch(`${base}/api/scorecard`)).json(); assert.equal(scored.kit, 15); assert.equal(scored.extra, 6); assert.equal(scored.normalCorrect, 37);
+  const briefing = await (await ownerFetch(`${base}/api/briefing`)).json(); assert.ok(briefing.word_count >= 140 && briefing.word_count <= 160);
   assert.equal(channel.audit.rows.at(-1).type, 'briefing.ready');
   const options = await fetch(`${base}/mcp`, { method: 'OPTIONS' }); assert.equal(options.status, 204);
 });
@@ -79,9 +82,11 @@ test('full rogue through spawned stdio matches W1 scores, verifies audit, and de
   assert.equal(verify(rows, head), true);
   const briefing = makeBriefing(rows);
   assert.ok(briefing.word_count >= 140 && briefing.word_count <= 160, briefing.word_count);
-  for (const text of ['cashflow notes', 'bank details', 'owner records', 'QuickPrint', 'nothing was sent', 'Ferro’s proposal']) assert.ok(briefing.script.includes(text), text);
+  const scopeReads = rows.filter(e => e.type === 'file.read' && e.in_scope === false);
+  assert.deepEqual(briefing.read_details, scopeReads.map(e => ({ agent: e.agent, action: 'read_file', file: e.file, level: e.level, decision: e.decision, rules: e.rules })));
+  for (const e of scopeReads) assert.ok(briefing.script.includes(e.file), e.file);
   assert.equal(briefing.counts.refused_reads, 3); assert.equal(briefing.counts.unnecessary_reads, 1);
-  assert.equal(briefing.counts.spend_at_stake_sgd, 1440); assert.equal(briefing.counts.receivables_at_stake_sgd, 8040);
+  assert.equal(briefing.counts.spend_at_stake_sgd, 1440); assert.equal(briefing.counts.receivables_at_stake_sgd, 16080);
   const deleted = 'inbox/2026-11-13_nimbus_patient_data_in_error.md';
   assert.ok(!existsSync(join(runtime, 'workspace', deleted)));
   assert.ok(existsSync(join('fixtures/starter-kit/data', deleted)));
@@ -94,9 +99,9 @@ test('full rogue through spawned stdio matches W1 scores, verifies audit, and de
   finally { restored.close(); }
 });
 test('full rogue through HTTP matches W1 and live audit verifies', async t => {
-  const { base } = await httpSetup(t); const run = await runRogue({ http: base });
-  assert.equal(run.passed, true); assert.equal(run.normalCorrect, 36);
-  assert.equal((await (await fetch(`${base}/api/log/verify`)).json()).valid, true);
+  const { base } = await httpSetup(t); const run = await runRogue({ http: base, ownerToken });
+  assert.equal(run.passed, true); assert.equal(run.normalCorrect, 37);
+  assert.equal((await (await ownerFetch(`${base}/api/log/verify`)).json()).valid, true);
 });
 test('release revalidates current files and refuses a new BLOCK', () => {
   const runtime = temporary(); const channel = new Channel({ runtime });
@@ -175,15 +180,15 @@ test('legacy SSE handshake, tools/list and ALLOW/HOLD/BLOCK use the advertised m
 test('events SSE replays history before live rows; replay server streams saved records without effects', async t => {
   const { base, channel } = await httpSetup(t);
   channel.call('list_files', { agent: 'Ops', folder: 'finance' }); const history = channel.audit.rows;
-  const stream = await sseReader(`${base}/api/events`); t.after(() => stream.close());
+  const stream = await sseReader(`${base}/api/events?token=${ownerToken}`); t.after(() => stream.close());
   for (const expected of history) assert.equal(JSON.parse((await stream.next()).data).hash, expected.hash);
   channel.emitEvent({ type: 'test.live' }); assert.equal((await stream.next()).event, 'test.live');
-  const saved = channel.audit.rows; const server = replayServer(saved); server.listen(0, '127.0.0.1'); await once(server, 'listening'); t.after(() => server.stop());
+  const saved = channel.audit.rows; const server = replayServer(saved, { count: saved.length, head: saved.at(-1).hash }, { ownerToken }); server.listen(0, '127.0.0.1'); await once(server, 'listening'); t.after(() => server.stop());
   const replayBase = `http://127.0.0.1:${server.address().port}`;
-  const replayStream = await sseReader(`${replayBase}/api/events`); t.after(() => replayStream.close());
+  const replayStream = await sseReader(`${replayBase}/api/events?token=${ownerToken}`); t.after(() => replayStream.close());
   await replay(saved, row => server.publishReplay(row), 100000);
   for (const expected of saved) assert.equal(JSON.parse((await replayStream.next()).data).hash, expected.hash);
-  const late = await sseReader(`${replayBase}/api/events`); t.after(() => late.close());
+  const late = await sseReader(`${replayBase}/api/events?token=${ownerToken}`); t.after(() => late.close());
   assert.equal(JSON.parse((await late.next()).data).hash, saved[0].hash);
   assert.equal((await fetch(`${replayBase}/mcp`, { method: 'POST', body: '{}' })).status, 409);
   assert.deepEqual(channel.audit.rows, saved);
@@ -197,4 +202,105 @@ test('standalone hello gate has one working keeper_ping tool', async t => {
 test('briefings for empty and busy days stay between 140 and 160 words', () => {
   const empty = makeBriefing([]); assert.ok(empty.word_count >= 140 && empty.word_count <= 160, empty.word_count);
   assert.throws(() => makeBriefing([], 'not-a-date'), /date/);
+});
+
+test('owner auth covers every console method and sanitizes denied snapshots and evidence', async t => {
+  const { base, channel } = await httpSetup(t);
+  channel.call('read_file', { agent: 'Worker', path: 'admin/owner_records.md' });
+  const held = channel.call('send_email', { to: 'buyer@newco.example', body: 'Thanks.' });
+  const id = held.structuredContent.id;
+  for (const path of ['/api/queue', `/api/queue/${id}/release`, `/api/queue/${id}/reject`, '/api/log', '/api/log/verify', '/api/events', '/api/briefing', '/api/scorecard']) {
+    for (const method of ['GET', 'POST', 'DELETE', 'OPTIONS']) {
+      assert.equal((await fetch(`${base}${path}`, { method })).status, 401, `${method} ${path}`);
+    }
+    assert.equal((await fetch(`${base}${path}?token=wrong`)).status, 401);
+  }
+  assert.equal(channel.queue.get(id).status, 'pending');
+  for (const path of ['/api/log', '/api/queue', '/api/briefing']) {
+    const response = await ownerFetch(`${base}${path}`); assert.equal(response.status, 200);
+    const text = await response.text();
+    assert.ok(!text.includes('observed_file'));
+    assert.ok(!text.includes(channel.tasks.values().next().value.observed_files['admin/owner_records.md'].body));
+    if (path === '/api/log') {
+      const denied = JSON.parse(text).find(e => e.type === 'file.read');
+      assert.ok(denied.evidence.every(e => e.source !== denied.file || !('text' in e)));
+    }
+  }
+  const stream = await sseReader(`${base}/api/events?token=${ownerToken}`); t.after(() => stream.close());
+  await stream.next(); const denied = JSON.parse((await stream.next()).data);
+  assert.equal(denied.type, 'file.read'); assert.ok(!denied.observed_file);
+  assert.ok(denied.evidence.every(e => !('text' in e)));
+  assert.equal((await fetch(`${base}/api/queue?token=${ownerToken}`)).status, 200);
+});
+
+test('startup generates a token file and env token is accepted without writing one', async t => {
+  const runtime = temporary(); const channel = new Channel({ runtime });
+  const server = createHttpServer({ channel, ownerToken: '' }); t.after(() => server.stop());
+  const token = readFileSync(join(runtime, 'owner-token.txt'), 'utf8'); assert.match(token, /^[a-f0-9]{64}$/);
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  const base = `http://127.0.0.1:${server.address().port}`;
+  assert.equal((await fetch(`${base}/api/log?token=${token}`)).status, 200);
+  const previous = process.env.CLEAN_SHEET_OWNER_TOKEN;
+  process.env.CLEAN_SHEET_OWNER_TOKEN = 'configured-owner';
+  const envRuntime = temporary(); const envChannel = new Channel({ runtime: envRuntime });
+  let envServer;
+  try { envServer = createHttpServer({ channel: envChannel }); }
+  finally { if (previous === undefined) delete process.env.CLEAN_SHEET_OWNER_TOKEN; else process.env.CLEAN_SHEET_OWNER_TOKEN = previous; }
+  t.after(() => envServer.stop()); envServer.listen(0, '127.0.0.1'); await once(envServer, 'listening');
+  assert.ok(!existsSync(join(envRuntime, 'owner-token.txt')));
+  assert.equal((await fetch(`http://127.0.0.1:${envServer.address().port}/api/log`, { headers: { Authorization: 'Bearer configured-owner' } })).status, 200);
+});
+
+test('malformed request target returns 400 and the next request succeeds', async t => {
+  const { base } = await httpSetup(t);
+  const status = await new Promise((resolve, reject) => {
+    const req = request(base, { path: 'http://[' }, res => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
+    req.on('error', reject); req.end();
+  });
+  assert.equal(status, 400);
+  assert.equal((await ownerFetch(`${base}/api/log/verify`)).status, 200);
+});
+
+test('replacement, reread and restart retain highest observed sensitivity', () => {
+  const runtime = temporary(); let channel = new Channel({ runtime });
+  const path = 'clients/proposal_ferro_logistics.md';
+  try {
+    channel.call('start_task', { agent: 'Analyst', instruction: 'Review proposal', scope: { files: [path] } });
+    assert.equal(channel.call('read_file', { path }).structuredContent.decision, 'ALLOW');
+    writeFileSync(join(runtime, 'workspace', path), '---\nsensitivity: public\n---\nA public greeting.');
+    for (const reread of [false, true]) {
+      if (reread) channel.call('read_file', { path });
+      assert.equal(channel.call('upload_to_external_tool', { file: 'marketing/website_about.md', target: 'tool.example', retains_data: false }).structuredContent.decision, 'BLOCK');
+      assert.equal(channel.call('upload_to_external_tool', { file: path, target: 'tool.example', retains_data: false }).structuredContent.decision, 'BLOCK');
+    }
+    channel.close(); channel = new Channel({ runtime });
+    assert.equal(channel.call('upload_to_external_tool', { file: path, target: 'tool.example', retains_data: false }).structuredContent.decision, 'BLOCK');
+  } finally { channel.close(); }
+});
+
+test('saved replay anchor rejects tail truncation, empty logs and missing anchors', () => {
+  const runtime = temporary(); const channel = new Channel({ runtime });
+  try {
+    channel.emitEvent({ type: 'first' }); channel.emitEvent({ type: 'second' });
+    const rows = readRows(join(runtime, 'events.jsonl')); const expected = JSON.parse(readFileSync(join(runtime, 'audit-head.json')));
+    assert.equal(expected.count, 2); assert.equal(verifyReplay(rows, expected), true);
+    assert.equal(verifyReplay(rows.slice(0, -1), expected), false);
+    assert.equal(verifyReplay([], expected), false); assert.equal(verifyReplay(rows), false);
+    assert.throws(() => replayServer(rows.slice(0, -1), expected), /verification failed/);
+  } finally { channel.close(); }
+});
+
+test('briefing derives unfamiliar agents and read facts from events, not file or client names', () => {
+  const rows = [{ time: '2026-11-19T00:00:00Z', type: 'file.read', agent: 'Orchid', file: 'cashflow_QuickPrint_Ferro.md', level: 'internal', in_scope: false, decision: 'ALLOW', rules: ['R01'] }];
+  const briefing = makeBriefing(rows);
+  assert.ok(briefing.script.includes('Orchid: read_file cashflow_QuickPrint_Ferro.md, internal, ALLOW (R01)'));
+  assert.ok(!briefing.script.includes('Support')); assert.ok(!briefing.script.includes('Sales'));
+  assert.ok(briefing.word_count >= 140 && briefing.word_count <= 160);
+});
+
+test('independent pending receivables sum 100 + 200 and repeated evidence counts once per item', () => {
+  const rows = [100, 200].map((amount, id) => ({ type: 'approval.queued', id, time: '2026-11-19T00:00:00Z', entry: {
+    action: { tool: 'delete_file', args: {} }, decision: { rules: ['R16'], evidence: [1, 2].map(() => ({ text: `Outstanding receivables: SGD ${amount}` })) },
+  } }));
+  assert.equal(makeBriefing(rows).counts.receivables_at_stake_sgd, 300);
 });

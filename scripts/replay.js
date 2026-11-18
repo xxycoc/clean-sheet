@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { EventEmitter } from 'node:events';
 import { pathToFileURL } from 'node:url';
 import { setTimeout } from 'node:timers/promises';
@@ -17,12 +19,17 @@ export async function replay(rows, publish, speed = 4, signal) {
     publish(row); previous = current;
   }
 }
-export function replayServer(rows) {
+export function verifyReplay(rows, expected) {
+  return Number.isInteger(expected?.count) && expected.count === rows.length &&
+    typeof expected.head === 'string' && verify(rows, expected.head);
+}
+export function replayServer(rows, expected, options = {}) {
+  if (!verifyReplay(rows, expected)) throw new Error('Replay verification failed: expected count and head required');
   const channel = new EventEmitter();
   const history = [];
   channel.audit = { get rows() { return history; } }; channel.queue = new Map(); channel.close = () => {};
-  channel.verifyLog = () => ({ valid: verify(rows), rows: rows.length, replay: true });
-  const server = createHttpServer({ channel, replayRows: rows });
+  channel.verifyLog = () => ({ valid: verifyReplay(rows, expected), rows: rows.length, replay: true });
+  const server = createHttpServer({ ...options, channel, replayRows: rows });
   const publish = server.publishReplay;
   server.publishReplay = event => { history.push(event); publish(event); };
   return server;
@@ -31,10 +38,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     if (!process.argv[2]) throw new Error('Usage: node scripts/replay.js runtime/events.jsonl --speed 4');
     const rows = readRows(process.argv[2]);
-    if (!rows.length || !verify(rows)) throw new Error('Replay requires a nonempty, valid hash-chained event log');
+    const expected = JSON.parse(readFileSync(join(dirname(process.argv[2]), 'audit-head.json'), 'utf8'));
+    if (!rows.length || !verifyReplay(rows, expected)) throw new Error('Replay requires a nonempty, valid hash-chained event log');
     const index = process.argv.indexOf('--speed'); const speed = index < 0 ? 4 : Number(process.argv[index + 1]);
     if (!Number.isFinite(speed) || speed <= 0) throw new Error('speed must be positive');
-    const server = replayServer(rows); const controller = new AbortController();
+    const server = replayServer(rows, expected); const controller = new AbortController();
     server.listen(Number(process.env.PORT ?? 8787), process.env.HOST ?? '127.0.0.1', async () => {
       console.log('Replay serving /api/events; history is replayed to late viewers.');
       try { await replay(rows, row => server.publishReplay(row), speed, controller.signal); console.log(`Replayed ${rows.length} events; server remains available until stopped.`); }

@@ -7,7 +7,7 @@ import { readRows } from '../src/mcp/channel.js';
 import { stdioClient, httpClient, initialize, callTool } from '../src/mcp/client.js';
 import { strictest } from '../src/keeper/policy.js';
 
-export async function runRogue({ http, runtime } = {}) {
+export async function runRogue({ http, runtime, ownerToken = process.env.CLEAN_SHEET_OWNER_TOKEN } = {}) {
   // The suite deletes fixture copies; only caller-owned runtimes should persist.
   const temporaryRuntime = !http && runtime === undefined ? mkdtempSync(join(tmpdir(), 'keeper-rogue-')) : undefined;
   runtime ??= temporaryRuntime;
@@ -34,7 +34,7 @@ export async function runRogue({ http, runtime } = {}) {
       await callTool(client, 'end_task', { task_id: taskId });
     }
     // Evidence is read through the owner channel, never returned to the worker as tool content.
-    const events = http ? await (await fetch(`${http.replace(/\/$/, '')}/api/log`)).json() : readRows(join(runtime, 'events.jsonl'));
+    const events = http ? await (await fetch(`${http.replace(/\/$/, '')}/api/log`, { headers: { Authorization: `Bearer ${ownerToken}` } })).json() : readRows(join(runtime, 'events.jsonl'));
     const aggregate = id => {
       const rows = events.filter(e => e.task_id === ids.get(id));
       const decisions = rows.filter(e => e.type === 'keeper.decision' && !e.revalidation); const reads = rows.filter(e => e.type === 'file.read');

@@ -6,6 +6,7 @@ import { EventEmitter } from 'node:events';
 import { loadFixtures, parseFile } from '../fixtures.js';
 import { createKeeper } from '../keeper/engine.js';
 import { AuditLog, verify } from '../keeper/log.js';
+import { highest, labelFile } from '../keeper/labels.js';
 import { strictest } from '../keeper/policy.js';
 import { validateTool } from './tools.js';
 
@@ -111,7 +112,7 @@ export class Channel extends EventEmitter {
   emitEvent(event) {
     const row = this.audit.append(event);
     appendFileSync(this.eventsPath, `${JSON.stringify(row)}\n`);
-    writeFileSync(this.headPath, JSON.stringify({ head: row.hash }));
+    writeFileSync(this.headPath, JSON.stringify({ count: this.audit.rows.length, head: row.hash }));
     this.emit('event', row);
     return row;
   }
@@ -145,7 +146,12 @@ export class Channel extends EventEmitter {
     const targets = new Set([args.file, args.invoice, args.confirmation_file, args.instruction_source, ...(args.files ?? []), ...(args.attachments ?? [])]);
     // A successful deletion must not erase the sensitivity of material already read.
     // Do not resurrect a missing execution target: W1 must still reject that action.
-    for (const [path, file] of Object.entries(task.observed_files ?? {})) if (!files[path] && !targets.has(path)) files[path] = file;
+    for (const [path, file] of Object.entries(task.observed_files ?? {})) {
+      if (files[path]) {
+        const level = highest([labelFile(files[path], this.keeper.context).level, file.header.sensitivity], this.keeper.context.taxonomy);
+        files[path] = { ...files[path], header: { ...files[path].header, sensitivity: level } };
+      } else if (!targets.has(path)) files[path] = file;
+    }
     return createKeeper({ ...this.keeper.context, files });
   }
   call(name, input = {}, session = 'stdio') {
@@ -173,8 +179,11 @@ export class Channel extends EventEmitter {
     if (name === 'read_file') {
       const decision = this.keeper.decideRead(task, args.file);
       const observed = this.keeper.context.files[args.file];
-      if (observed) task.observed_files[args.file] = structuredClone(observed);
-      this.emitEvent({ ...decision, ...(observed ? { observed_file: observed } : {}) });
+      if (observed) {
+        const level = highest([decision.level, task.observed_files[args.file]?.header.sensitivity], this.keeper.context.taxonomy);
+        task.observed_files[args.file] = { ...structuredClone(observed), header: { ...observed.header, sensitivity: level } };
+      }
+      this.emitEvent({ ...decision, ...(observed ? { observed_file: task.observed_files[args.file] } : {}) });
       if (!task.reads.includes(args.file)) task.reads.push(args.file);
       const data = { task_id: task.id, decision: decision.decision, rules: decision.rules };
       if (decision.decision !== 'ALLOW') return result('Blocked by the Keeper: This file is unavailable or outside the permitted task scope. No file content was returned.', data, true);

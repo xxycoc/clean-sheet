@@ -74,7 +74,7 @@ For a client that needs legacy SSE, add `clean-sheet-sse` instead:
 
 Use one of these connectors for a worker, then query its custom connector key and repeat the read task. The HTTP transport returns `MCP-Session-Id` on initialization; subsequent requests must send that header. The legacy SSE stream advertises `/messages?sessionId=...` itself. Do not configure `/messages` as the connector URL.
 
-The default listener is `127.0.0.1:8787`; `PORT` and `HOST` override it. Cloud scheduled tasks need this HTTP server hosted at a public URL; a desktop localhost URL cannot serve them. Before public hosting, put authentication and owner/worker route separation in front of the service. This local demo deliberately has open CORS and no login. `/api/*` exposes owner evidence and approvals and must not be offered as worker tools or exposed publicly as-is. QwenWork's other connectors are outside this channel; this server does not intercept them.
+The default listener is `127.0.0.1:8787`; `PORT` and `HOST` override it. Cloud scheduled tasks need this HTTP server hosted at a public URL; a desktop localhost URL cannot serve them. All `/api/*` routes require an owner token, including queue mutations and event streams. Set `CLEAN_SHEET_OWNER_TOKEN` before startup, or read the generated token from `owner-token.txt` in the selected runtime directory. Startup prints the path, never the token. Send `Authorization: Bearer <token>` or `?token=<encoded-token>`; use the query form for EventSource and cross-origin preflight requests. Keep this credential out of agent configuration. `/mcp`, `/sse`, and `/messages` remain open for agents; CORS remains open. QwenWork's other connectors are outside this channel; this server does not intercept them.
 
 ## Console and demo commands
 
@@ -86,7 +86,7 @@ The default listener is `127.0.0.1:8787`; `PORT` and `HOST` override it. Cloud s
 | `POST /api/queue/:id/reject` | Record rejection without execution |
 | `GET /api/scorecard` | In-memory W1 scenario and normal-action totals; no workspace effects |
 | `GET /api/log/verify` | Hash-chain and persisted head verification |
-| `GET /api/log` | Full owner-only audit rows, also used by the HTTP rogue scorer |
+| `GET /api/log` | Owner audit view with snapshots and denied-source evidence text removed; used by the HTTP rogue scorer |
 | `GET /api/briefing?date=2026-11-18` | Script and JSON counts; dates are UTC; omitted date uses latest log day |
 
 Run one complete protocol demonstration:
@@ -99,6 +99,7 @@ node scripts/briefing.js
 Or, with the HTTP server running on a fresh workspace:
 
 ```powershell
+$env:CLEAN_SHEET_OWNER_TOKEN = Get-Content runtime/owner-token.txt -Raw
 node scripts/rogue.js --http http://127.0.0.1:8787
 ```
 
@@ -118,13 +119,13 @@ Replay a saved run on the same console routes, after stopping the live HTTP serv
 node scripts/replay.js runtime/events.jsonl --speed 4
 ```
 
-Replay validates the saved hash chain, uses original timing divided by four, and serves `/api/events` at port 8787. Late viewers receive the history already replayed. It stays running until Ctrl+C, rejects POST operations, and neither executes actions nor appends to the source log. Use `PORT` for a separate replay listener.
+Keep `audit-head.json` beside the saved `events.jsonl`. Replay requires its expected row count and last hash, rejects truncated or unanchored runs, uses original timing divided by four, and serves `/api/events` at port 8787. Late viewers receive the history already replayed. It stays running until Ctrl+C, rejects POST operations, and neither executes actions nor appends to the source log. Use `PORT` for a separate replay listener.
 
 ## What execution means here
 
 Allowed reads return copied file contents. Emails and R17 notifications are saved as JSON under `outbox/`; uploads copy files under `uploads/<action-id>/`; deletes remove the copied files. Quotes, terms, payments and orders produce JSON receipts under `actions/`. No external email, upload, payment or supplier service is contacted.
 
-`events.jsonl` is also the hash-chained audit log: every decision and contract event has `time`, `seq`, `prev_hash`, and `hash`. `audit-head.json` anchors the current head locally. This detects accidental edits and truncation; it is not a separately trusted external anchor. Startup fails closed if verification fails. An interrupted or partially failed effect is logged for manual review, with no automatic retry that could duplicate spending.
+`events.jsonl` is also the hash-chained audit log: every decision and contract event has `time`, `seq`, `prev_hash`, and `hash`. `audit-head.json` anchors the current row count and last hash locally. Console rows are redacted views; verify the original disk log rather than rehashing those views. This detects accidental edits and truncation; it is not a separately trusted external anchor. Startup fails closed if verification fails. An interrupted or partially failed effect is logged for manual review, with no automatic retry that could duplicate spending.
 
 Owner approval is an explicit exception for the exact held action after revalidation. It never overrides a new BLOCK. A worker receives no evidence objects; after a refused read its later action message is generic to avoid leaking private source text through the reason.
 

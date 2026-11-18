@@ -1,26 +1,55 @@
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { Channel } from './channel.js';
+import { Channel, defaultRuntime } from './channel.js';
 import { createProtocol, parseDispatch } from './protocol.js';
 import { score } from '../../scripts/score.js';
 import { makeBriefing } from '../briefing.js';
 
-export function createHttpServer({ channel = new Channel(), replayRows = null } = {}) {
+export function createHttpServer({ channel = new Channel(), replayRows = null, ownerToken = process.env.CLEAN_SHEET_OWNER_TOKEN } = {}) {
+  if (!ownerToken) {
+    ownerToken = randomBytes(32).toString('hex');
+    const runtime = channel.runtime ?? defaultRuntime();
+    mkdirSync(runtime, { recursive: true });
+    const tokenPath = join(runtime, 'owner-token.txt');
+    writeFileSync(tokenPath, ownerToken, { mode: 0o600 });
+    console.error(`Owner token saved to ${tokenPath}`);
+  }
+  // Console views omit snapshots and text from denied sources, including nested queue entries.
+  const sanitize = value => {
+    const denied = new Map();
+    for (const e of replayRows ?? channel.audit.rows) if (e.type === 'file.read' && e.decision !== 'ALLOW') {
+      if (!denied.has(e.task_id)) denied.set(e.task_id, new Set());
+      denied.get(e.task_id).add(e.file);
+    }
+    const walk = (item, taskId) => {
+      if (Array.isArray(item)) return item.map(value => walk(value, taskId));
+      if (!item || typeof item !== 'object') return item;
+      taskId = item.task_id ?? item.task?.id ?? taskId;
+      return Object.fromEntries(Object.entries(item).filter(([key]) =>
+        !['observed_file', 'observed_files'].includes(key) &&
+        !(denied.get(taskId)?.has(item.source) && key === 'text')).map(([key, value]) => [key, walk(value, taskId)]));
+    };
+    return walk(value);
+  };
   const dispatch = createProtocol(channel);
   const sessions = new Map(); const streams = new Set(); const replayHistory = [];
-  const json = (res, status, data, headers = {}) => { res.writeHead(status, { 'Content-Type': 'application/json', ...headers }); res.end(data === null ? undefined : JSON.stringify(data)); };
+  const json = (res, status, data, headers = {}) => { res.writeHead(status, { 'Content-Type': 'application/json', ...headers }); res.end(data === null ? undefined : JSON.stringify(sanitize(data))); };
   const sse = res => { res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' }); res.flushHeaders(); };
-  const frame = (res, event) => res.write(`id: ${event.seq ?? ''}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+  const frame = (res, event) => res.write(`id: ${event.seq ?? ''}\nevent: ${event.type}\ndata: ${JSON.stringify(sanitize(event))}\n\n`);
   const broadcast = event => { for (const res of streams) frame(res, event); };
   channel.on('event', broadcast);
-  const server = createServer(async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, MCP-Session-Id, MCP-Protocol-Version, Last-Event-ID');
-    res.setHeader('Access-Control-Expose-Headers', 'MCP-Session-Id');
-    const url = new URL(req.url, 'http://localhost');
+  const handle = async (req, res) => {
     try {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, MCP-Session-Id, MCP-Protocol-Version, Last-Event-ID');
+      res.setHeader('Access-Control-Expose-Headers', 'MCP-Session-Id');
+      const url = new URL(req.url, 'http://localhost');
+      if (url.pathname.startsWith('/api/') &&
+          req.headers.authorization !== `Bearer ${ownerToken}` && url.searchParams.get('token') !== ownerToken) return json(res, 401, { error: 'Owner token required' });
       if (req.method === 'OPTIONS') return json(res, 204, null);
       if (req.method === 'GET' && url.pathname === '/api/events') {
         sse(res);
@@ -74,6 +103,9 @@ export function createHttpServer({ channel = new Channel(), replayRows = null } 
       }
       return json(res, 404, { error: 'Not found' });
     } catch (error) { if (!res.headersSent) json(res, 400, { error: error.message }); else res.end(); }
+  };
+  const server = createServer((req, res) => {
+    void handle(req, res).catch(() => { res.destroy(); });
   });
   const heartbeat = setInterval(() => { for (const res of [...streams, ...[...sessions.values()].map(s => s.res).filter(Boolean)]) res.write(': keepalive\n\n'); }, 15000);
   heartbeat.unref();
