@@ -99,7 +99,7 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <li>TripCrew pipeline to reuse</li>
     </ul></div>
     <div class="st next"><h3>Today, Wed 18</h3><ul>
-      <li>Confirm judging weights (02)</li>
+      <li><s>Confirm judging weights (02)</s> Official: 25/25/20/15/15</li>
       <li>Hashmeta account via invite, connect its MCP</li>
       <li>QwenWork spike: can agents call our MCP tools?</li>
       <li>W1 starts the engine on the kit</li>
@@ -117,15 +117,18 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <p>AvePoint's brief: build an oversight agent that logs every action and data access, scores outputs for hallucination and policy breaks, blocks or escalates risky actions as they happen, and writes a plain-language daily briefing. The owner has no technical background. <b>Legibility is the win condition.</b> Zero missed violations beats a clever dashboard.</p>
   <p>We use their world as given: <b>Lumen Studio</b>, a fictional one-person design studio in Singapore run by Mei Tan, with 28 files, a four-level taxonomy and a 19-rule policy. The kit invites teams to add their own misbehaviours, "the ones the judges will remember", so we add S6 and S7.</p>
 
-  <h3>Two different weightings</h3>
+  <h3>Official weighting</h3>
   <div class="tbl"><table>
-    <thead><tr><th>Source</th><th>Innovation</th><th>Feasibility</th><th>QwenWork</th><th>Demo</th><th>Hashmeta site</th></tr></thead>
+    <thead><tr><th>Criterion</th><th>Weight</th><th>Their line</th></tr></thead>
     <tbody>
-      <tr><td>Kickoff slide</td><td>25</td><td>25</td><td>20</td><td>15</td><td>15</td></tr>
-      <tr><td>AvePoint kit, page 7</td><td>30</td><td>30</td><td>20</td><td>20</td><td>none</td></tr>
+      <tr><td>Innovation</td><td>25%</td><td>A new approach, not a rebuild.</td></tr>
+      <tr><td>Feasibility &amp; Viability</td><td>25%</td><td>Could it actually run a business?</td></tr>
+      <tr><td>Use of QwenWork Platform</td><td>20%</td><td>The engine of the product, not a checkbox.</td></tr>
+      <tr><td>Demo Presentation</td><td>15%</td><td>Clear, structured, working live.</td></tr>
+      <tr><td>Website built with Hashmeta AI</td><td>15%</td><td>A page you'd send a customer.</td></tr>
     </tbody>
   </table></div>
-  <p class="note">We plan to the kickoff slide: the Hashmeta site is a must. Ask in the WhatsApp group only to confirm the weights.</p>
+  <p class="note">Settled 19 Nov from the official hackathon site. AvePoint's kit weights (30/30/20/20, no website) do not apply.</p>
 
   <h3>What we submit</h3>
   <div class="tbl"><table>
@@ -133,7 +136,8 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <tbody>
       <tr><td>Live application</td><td>Built in QwenWork, database-backed, running</td><td>Keeper console made with QwenWork vibe coding: live feed, approval queue, audit log, scorecard</td></tr>
       <tr><td>Generated content</td><td>The 60-second briefing video</td><td>A scheduled QwenWork task writes the briefing from the log; QwenWork multimodal turns it into the video</td></tr>
-      <tr><td>Demo video</td><td>The four moments</td><td>Section 04, under 3 minutes</td></tr>
+      <tr><td>Demo video</td><td>Generated with QwenWork, 3 minutes max, shows the product working, YouTube link</td><td>The four moments (section 04), produced in QwenWork, uploaded to YouTube</td></tr>
+      <tr><td>Form</td><td>Title, one-sentence description, project description; GitHub optional</td><td>Include the GitHub link; deadline Mon 23 Nov 23:59 SGT</td></tr>
     </tbody>
   </table></div>
 
@@ -230,11 +234,12 @@ audit log (database) ─▶ console + 3D floor ─▶ 8 AM scheduled task ─▶
 
   <h3>Open questions</h3>
   <ol>
-    <li>Confirm the kickoff weights apply to Track 2.</li>
+    <li><s>Confirm the kickoff weights apply to Track 2.</s> Yes: the official site gives 25/25/20/15/15.</li>
     <li>Can the Hashmeta site embed the live scorecard, or only link to the console?</li>
-    <li>Can QwenWork agents call tools on our own MCP server?</li>
+    <li><s>Can QwenWork agents call tools on our own MCP server?</s> Yes on paper: QwenWork desktop 1.4.1 adds custom MCP servers by command (stdio) or URL (SSE/HTTP). Still to test live. Cloud scheduled tasks will likely need the URL form, so host the tool server.</li>
     <li>Can a vibe-coded QwenWork app run server code (the engine) or call out to it?</li>
     <li>Can QwenWork multimodal make the 60-second video, or do we assemble it from its audio and images?</li>
+    <li>The demo video must be generated with QwenWork. Which QwenWork feature makes it, and can it include live screen capture of the console?</li>
   </ol>
 
   <h3>Risks</h3>
@@ -277,7 +282,7 @@ audit log (database) ─▶ console + 3D floor ─▶ 8 AM scheduled task ─▶
   <div class="tbl"><table>
     <thead><tr><th>Track</th><th>Who</th><th>Builds</th></tr></thead>
     <tbody>
-      <tr><td>Founder</td><td>Siang Woo</td><td>QwenWork setup, vibe-coding prompts, agent briefs, weights question, voice lines, look pick</td></tr>
+      <tr><td>Founder</td><td>Siang Woo</td><td>QwenWork setup, vibe-coding prompts, agent briefs, voice lines, look pick</td></tr>
       <tr><td>Lead</td><td>Claude</td><td>Contract, S6 and S7 data files, git and merges, reviews, scenario runs, demo script, video edit</td></tr>
       <tr><td>W1 Keeper</td><td>Codex worker</td><td>Engine, rules, figure check, scenario runner and scorecard</td></tr>
       <tr><td>W2 Channel</td><td>Codex worker</td><td>MCP tool server, QwenWork wiring, approval queue, briefing data</td></tr>
