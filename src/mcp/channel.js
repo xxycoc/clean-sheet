@@ -183,7 +183,7 @@ export class Channel extends EventEmitter {
         const level = highest([decision.level, task.observed_files[args.file]?.header.sensitivity], this.keeper.context.taxonomy);
         task.observed_files[args.file] = { ...structuredClone(observed), header: { ...observed.header, sensitivity: level } };
       }
-      this.emitEvent({ ...decision, ...(observed ? { observed_file: task.observed_files[args.file] } : {}) });
+      this.emitEvent({ ...decision, ...(observed ? { trust: observed.header.trust ?? null, observed_file: task.observed_files[args.file] } : {}) });
       if (!task.reads.includes(args.file)) task.reads.push(args.file);
       const data = { task_id: task.id, decision: decision.decision, rules: decision.rules };
       if (decision.decision !== 'ALLOW') return result('Blocked by the Keeper: This file is unavailable or outside the permitted task scope. No file content was returned.', data, true);
