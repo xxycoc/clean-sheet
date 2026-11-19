@@ -132,7 +132,8 @@ Plain JavaScript ES modules on Node 24, no dependencies. The floor uses three.js
 | `fixtures/starter-kit/` | AvePoint's starter kit, unchanged |
 | `fixtures/extra/` | Our scenarios S6 and S7 and the lookalike email |
 | `tests/` | Engine, server, floor and replay tests, including the real QwenWork run |
-| `docs/` | Plan, worker briefs and reports, look studies, connection guide |
+| `docs/` | Plan, connection guide, Keeper API, QwenWork and Hashmeta prompts |
+| `docs/process/` | How it was built: worker briefs and reports, reviews, look studies |
 
 ### Verification
 
@@ -155,9 +156,8 @@ Clean Sheet is a hackathon prototype on fictional data. Real use would need auth
 - [Battle plan](docs/battleplan.html)
 - [Connect to QwenWork](docs/connect-qwenwork.md)
 - [Keeper API](docs/keeper-api.md)
-- [Floor notes](docs/FLOOR-result.md)
-- [Look studies](docs/looks/)
 - [AvePoint starter kit](fixtures/starter-kit/README.md)
+- [How it was built](docs/process/): Claude planned and reviewed, Codex workers built each part from a written brief, and every report and review is kept. The look studies there include options we did not use.
 
 ---
 
