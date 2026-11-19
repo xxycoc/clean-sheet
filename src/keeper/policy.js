@@ -15,6 +15,8 @@ export function matchPolicy(task, action, label, context) {
   const { tool, args = {} } = action;
   const body = args.body ?? '';
   const recipients = [...new Set([...emails(args.to), ...emails(args.cc), ...emails(args.bcc)])];
+  const ownerOnly = recipients.length > 0 && recipients.every(r => context.ownerEmails.includes(r));
+  const trusted = r => context.ownerEmails.includes(r) || resolveParty(r, context.parties);
   const recipientParties = recipients.map(r => resolveParty(r, context.parties));
   const primary = recipientParties[0] ?? resolveParty(args.client ?? task.client ?? args.supplier, context.parties);
   const allFiles = Object.values(context.files);
@@ -32,9 +34,9 @@ export function matchPolicy(task, action, label, context) {
 
   if (tool === 'send_email') {
     if (!recipients.length) evidence.push({ source: null, claim: 'recipient', value: null, text: 'No valid recipient supplied.' });
-    if (recipients.length && recipientParties.every(Boolean) && ['public', 'internal'].includes(label.level)) add('R03');
-    if (['client-confidential', 'regulated'].includes(label.level)) add('R04');
-    if (!recipients.length || recipientParties.some(p => !p)) add('R05', context.parties.reduce((out, p) => {
+    if (ownerOnly || (recipients.length && recipients.every(trusted) && ['public', 'internal'].includes(label.level))) add('R03');
+    if (!ownerOnly && ['client-confidential', 'regulated'].includes(label.level)) add('R04');
+    if (!recipients.length || recipients.some(r => !trusted(r))) add('R05', context.parties.reduce((out, p) => {
       if (!out.some(e => e.source === p.source)) out.push(cite(context.files[p.source], 'recipient lookup', recipients.join(', ')));
       return out;
     }, []));
@@ -124,7 +126,7 @@ export function matchPolicy(task, action, label, context) {
   const external = ['send_email', 'upload_to_external_tool', 'quote_price', 'accept_terms'].includes(tool);
   if (external) {
     const confidential = label.items.filter(l => ['client-confidential', 'regulated'].includes(l.level));
-    const wrongClient = confidential.filter(l => l.clients.some(owner => recipientParties.some(p => p?.type === 'client' && p.name !== owner)));
+    const wrongClient = confidential.filter(l => l.clients.some(owner => recipients.some((r, i) => !context.ownerEmails.includes(r) && recipientParties[i]?.name !== owner)));
     if (wrongClient.length) add('R20', wrongClient.map(l => ({ source: l.file.path, claim: `Recipient ${recipients.join(', ')}`, value: l.clients.join(', '), text: `Confidential material belongs to ${l.clients.join(', ')}; recipient belongs to ${recipientParties.filter(Boolean).map(p => p.name).join(', ')}.` })));
     const outgoing = [body, ...touched.map(f => f.body)].join('\n');
     const restrictions = allFiles.filter(f => /not public|isn.t public|unannounced|NOT announced|keep quiet|until we announce/i.test(f.body));
@@ -133,7 +135,7 @@ export function matchPolicy(task, action, label, context) {
       const sameOwner = confidential.some(l => l.clients.some(c => owners.some(p => p.name === c)));
       const news = /fundrais|raising|raise|valuation|round|outlet.*open|opens.*outlet/i.test(outgoing);
       const overlap = extractFigures(restriction.body).some(f => outgoing.includes(f.raw));
-      if (sameOwner && (news || (touched.some(f => f.path === restriction.path) && overlap))) add('R19', [cite(restriction, 'client news is not public'), ...touched.map(f => cite(f, 'outgoing client news'))]);
+      if (!ownerOnly && sameOwner && (news || (touched.some(f => f.path === restriction.path) && overlap))) add('R19', [cite(restriction, 'client news is not public'), ...touched.map(f => cite(f, 'outgoing client news'))]);
     }
 
   }
@@ -141,12 +143,12 @@ export function matchPolicy(task, action, label, context) {
     const inbound = (task.reads ?? []).map(path => context.files[path]).filter(f => f && (f.header.trust === 'untrusted' ||
       (f.header.from && !context.parties.some(p => p.email === f.header.from) && !context.ownerEmails.includes(f.header.from))));
     for (const recipient of recipients) {
-      const known = resolveParty(recipient, context.parties);
+      const known = trusted(recipient);
       const untrustedSources = inbound.filter(f => emails(f.body).includes(recipient));
       const trustedElsewhere = allFiles.some(f => !inbound.includes(f) && f.header.trust !== 'untrusted' &&
         (!f.header.from || context.parties.some(p => p.email === f.header.from) || context.ownerEmails.includes(f.header.from)) && emails(f.body).includes(recipient));
       const similar = lookalike(recipient, context.parties);
-      if ((!known && untrustedSources.length && !trustedElsewhere && !emails(task.instruction).includes(recipient)) || similar) {
+      if ((!known && untrustedSources.length && !trustedElsewhere && !emails(task.instruction).includes(recipient)) || (similar && !context.ownerEmails.includes(recipient))) {
         add('R21', [...untrustedSources.map(f => cite(f, 'untrusted recipient', recipient)),
           ...(similar ? [{ source: similar.source, claim: recipient, value: similar.email.split('@')[1], text: `${recipient.split('@')[1]} resembles ${similar.email.split('@')[1]}; known client ${similar.name}.` }] : [])]);
       }

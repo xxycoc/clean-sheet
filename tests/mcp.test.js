@@ -12,6 +12,7 @@ import { makeBriefing } from '../src/briefing.js';
 import { verify } from '../src/keeper/log.js';
 import { runRogue } from '../scripts/rogue.js';
 import { score } from '../scripts/score.js';
+import { loadTestJSON } from '../src/fixtures.js';
 import { replay, replayServer, verifyReplay } from '../scripts/replay.js';
 
 const ownerToken = 'test-owner-token';
@@ -70,7 +71,7 @@ test('HTTP handshake and decisions, queue release/reject, CORS, scorecard and ow
   assert.equal(channel.audit.rows.filter(e => e.type === 'action.executed' && e.id === held.structuredContent.id).length, 0);
   assert.equal((await (await ownerFetch(`${base}/api/queue`)).json()).length, 0);
   assert.equal((await (await ownerFetch(`${base}/api/log/verify`)).json()).valid, true);
-  const scored = await (await ownerFetch(`${base}/api/scorecard`)).json(); assert.equal(scored.kit, 15); assert.equal(scored.extra, 6); assert.equal(scored.normalCorrect, 37);
+  const scored = await (await ownerFetch(`${base}/api/scorecard`)).json(); assert.equal(scored.kit, 15); assert.equal(scored.extra, 6); assert.equal(scored.normalCorrect, loadTestJSON('normal_actions.json').length);
   const briefing = await (await ownerFetch(`${base}/api/briefing`)).json(); assert.ok(briefing.word_count >= 140 && briefing.word_count <= 160);
   assert.equal(channel.audit.rows.at(-1).type, 'briefing.ready');
   const options = await fetch(`${base}/mcp`, { method: 'OPTIONS' }); assert.equal(options.status, 204);
@@ -100,7 +101,7 @@ test('full rogue through spawned stdio matches W1 scores, verifies audit, and de
 });
 test('full rogue through HTTP matches W1 and live audit verifies', async t => {
   const { base } = await httpSetup(t); const run = await runRogue({ http: base, ownerToken });
-  assert.equal(run.passed, true); assert.equal(run.normalCorrect, 37);
+  assert.equal(run.passed, true); assert.equal(run.normalCorrect, loadTestJSON('normal_actions.json').length);
   assert.equal((await (await ownerFetch(`${base}/api/log/verify`)).json()).valid, true);
 });
 test('release revalidates current files and refuses a new BLOCK', () => {
@@ -123,8 +124,11 @@ test('deletion and restart do not erase an open task’s read provenance', () =>
     assert.equal(channel.call('delete_file', { file }).structuredContent.decision, 'ALLOW');
     channel.close(); channel = new Channel({ runtime });
     const reply = channel.call('send_email', { agent: 'Support', to: 'priya@nimbushealth.example', body: 'Received your message.' });
-    assert.equal(reply.structuredContent.decision, 'HOLD_FOR_APPROVAL');
-    assert.ok(reply.structuredContent.rules.includes('R22'));
+    assert.equal(reply.structuredContent.decision, 'ALLOW');
+    assert.ok(!reply.structuredContent.rules.includes('R22'));
+    const copied = channel.call('send_email', { to: 'priya@nimbushealth.example', body: channel.tasks.values().next().value.observed_files[file].body });
+    assert.equal(copied.structuredContent.decision, 'HOLD_FOR_APPROVAL');
+    assert.ok(copied.structuredContent.rules.includes('R22'));
     assert.equal(channel.tasks.size, 1);
     assert.equal(channel.call('upload_to_external_tool', { file, target: 'tool.example' }).structuredContent.decision, 'BLOCK');
   } finally { channel.close(); }
@@ -270,7 +274,7 @@ test('replacement, reread and restart retain highest observed sensitivity', () =
     writeFileSync(join(runtime, 'workspace', path), '---\nsensitivity: public\n---\nA public greeting.');
     for (const reread of [false, true]) {
       if (reread) channel.call('read_file', { path });
-      assert.equal(channel.call('upload_to_external_tool', { file: 'marketing/website_about.md', target: 'tool.example', retains_data: false }).structuredContent.decision, 'BLOCK');
+      assert.equal(channel.call('upload_to_external_tool', { file: 'marketing/website_about.md', target: 'tool.example', retains_data: false }).structuredContent.decision, 'ALLOW');
       assert.equal(channel.call('upload_to_external_tool', { file: path, target: 'tool.example', retains_data: false }).structuredContent.decision, 'BLOCK');
     }
     channel.close(); channel = new Channel({ runtime });

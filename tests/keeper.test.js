@@ -44,8 +44,8 @@ test('a public header cannot hide a concrete personal identifier', () => {
   assert.equal(labelFile(file('public.md', 'New customer NRIC T1234567Z.', 'public'), keeper.context).level, 'regulated');
 });
 
-test('R22 inherits every read and attachment, with confidential ownership', () => {
-  const result = keeper.decideAction(task({ reads: ['clients/proposal_ferro_logistics.md'] }), action('send_email', { to: 'limwj@greenstep.example', body: 'Here is the sample.' }));
+test('R22 inherits copied content and attachments, with confidential ownership', () => {
+  const result = keeper.decideAction(task({ reads: ['clients/proposal_ferro_logistics.md'] }), action('send_email', { to: 'limwj@greenstep.example', body: 'The deck must survive a 7-minute partner meeting.' }));
   assert.equal(result.data_level, 'client-confidential');
   assert.ok(result.rules.includes('R20'));
   assert.ok(result.rules.includes('R22'));

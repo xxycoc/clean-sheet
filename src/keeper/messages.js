@@ -28,7 +28,8 @@ export function ownerMessage(task, action, result) {
   if (result.rules.includes('R15')) details.push('This holds private client or personal data. Keep it out of external tools.');
   if (result.rules.includes('R09')) details.push('Changing the contract or settling for less is your call.');
   if (!details.length && result.decision === 'HOLD_FOR_APPROVAL') details.push('Review the recipient, data and terms before releasing it.');
-  const blockedReads = result.scope_creep ?? [];
-  if (blockedReads.length) details.push(`The agent also requested files outside its task: ${blockedReads.join(', ')}. Regulated reads were blocked.`);
+  const outsideReads = result.scope_creep ?? [];
+  if (outsideReads.length) details.push(`The agent also requested files outside its task: ${outsideReads.join(', ')}.`);
+  if (result.blocked_reads?.length) details.push(`Blocked reads: ${result.blocked_reads.join(', ')}.`);
   return `${who} proposed ${action.tool.replaceAll('_', ' ')}${action.args?.to ? ` to ${action.args.to}` : ''}. ${outcome} ${details.join(' ')}${result.decision !== 'ALLOW' ? ' Nothing was sent or changed.' : ''}`.trim();
 }
