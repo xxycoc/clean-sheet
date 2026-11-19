@@ -9,11 +9,11 @@
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body data-look="B"><main>
-<header><div><div class="eyebrow">Clean Sheet / Match night / Octopus studies</div><h1 id="title">1 &middot; Chunky toy</h1></div><nav aria-label="Octopus style"><button data-style="1" aria-pressed="true">1 &middot; Chunky toy</button><button data-style="2" aria-pressed="false">2 &middot; Sleek</button><button data-style="3" aria-pressed="false">3 &middot; Squishy</button></nav></header>
+<header><div><div class="eyebrow">Clean Sheet / Match night / Octopus studies</div><h1 id="title">1 &middot; Chunky toy</h1></div><nav aria-label="Octopus style"><button data-style="1" aria-pressed="true">1 &middot; Chunky toy</button><button data-style="2" aria-pressed="false">2 &middot; Sleek</button><button data-style="3" aria-pressed="false">3 &middot; Squishy</button><button data-style="4" aria-pressed="false">4 &middot; Specs</button></nav></header>
 <div class="intro"><p id="description">Round heads, bright colours and eight stubby arms. A cheerful match-night crew.</p><div class="legend" aria-label="Room sensitivity"><span style="--dot:#48a676">Public</span><span style="--dot:#548fc9">Internal</span><span style="--dot:#d59a38">Client-confidential</span><span style="--dot:#cf5d69">Regulated</span></div></div>
 <section class="stage" aria-label="Scripted 3D office preview"><canvas id="view" aria-label="Six folder rooms, four octopus workers and an octopus goalkeeper at the goal exit"></canvas><svg id="leaders" aria-hidden="true"></svg><div id="labels"></div><div id="score">Saves 0 · Held 0 · Conceded 0</div><div id="sceneTag">MATCH NIGHT / OCTOPUS OPTIONS</div><div id="error">Loading the pinned three.js module…</div></section>
 <section class="caption" aria-live="polite" aria-atomic="true"><div id="decision" class="status">01 / WORK</div><div><p id="message">Sales visits Clients, then returns to the floor.</p><small id="detail">Normal access within the agent’s scope.</small></div></section><div class="track"><div id="progress"></div></div>
-<footer><span id="playback">25-second loop · Same sequence in all three styles</span><span>Options only · Keys 1 / 2 / 3</span></footer>
+<footer><span id="playback">25-second loop · Same sequence in all four styles</span><span>Options only · Keys 1 / 2 / 3 / 4</span></footer>
 </main>
 <script type="module">
 const $ = id => document.getElementById(id);
@@ -23,6 +23,7 @@ const theme={bg:0x0b1820,floor:0x173c38,wall:0x3d625d,desk:0x42616a,keeper:0xf3c
 const styles={
  '1':{title:'1 \u00b7 Chunky toy',description:'Round heads, bright colours and eight stubby arms. A cheerful match-night crew.'},
  '2':{title:'2 \u00b7 Sleek',description:'Tall glossy mantles, small eyes and slim curled arms. Dressed for precise work.'},
+ '4':{title:'4 \u00b7 Specs',description:'Pastel teammates with oversized cyan glasses, curled arms and tools for every role.'},
  '3':{title:'3 \u00b7 Squishy',description:'Soft jelly bodies, waving arms and tiny ties. A little bounce in every shift.'}
 };
 const rooms=[['Clients','Client-confidential',0xd59a38,-4,-3],['Finance','Regulated',0xcf5d69,0,-3],['Inbox','Internal',0x548fc9,4,-3],['Notes','Internal',0x548fc9,-4,.5],['Marketing','Public',0x48a676,0,.5],['Admin','Regulated',0xcf5d69,4,.5]];
@@ -39,10 +40,98 @@ function sphere(parent,r,color,x,y,z){const m=new THREE.Mesh(new THREE.Icosahedr
 function line(points,color,parent=world){const g=new THREE.BufferGeometry().setFromPoints(points.map(p=>new THREE.Vector3(...p)));const l=new THREE.Line(g,new THREE.LineBasicMaterial({color}));parent.add(l);return l;}
 function label(text,sub,object,offset,cls=''){const el=document.createElement('div');el.className='label '+cls;const name=document.createElement('span');name.textContent=text;el.append(name);if(sub){const small=document.createElement('small');small.textContent=sub;el.append(small);}$('labels').append(el);const leader=document.createElementNS('http://www.w3.org/2000/svg','line');$('leaders').append(leader);labels.push({el,leader,object,offset:new THREE.Vector3(...offset)});return el;}
 function ellipsoid(parent,r,color,x,y,z,scale,material){
- const geometry=style==='1'?new THREE.IcosahedronGeometry(r,1):new THREE.SphereGeometry(r,24,16);
+ const geometry=style==='1'?new THREE.IcosahedronGeometry(r,1):new THREE.SphereGeometry(r,style==='4'?48:24,style==='4'?32:16);
  const mesh=new THREE.Mesh(geometry,material||mat(color));mesh.position.set(x,y,z);mesh.scale.set(...scale);mesh.castShadow=true;parent.add(mesh);return mesh;
 }
+function specsPerson(name,x,z){
+ const colors={Inbox:0xa5d7ef,Sales:0xa9e5ce,Finance:0xf5b3ac,Marketing:0xcbb5ec,Keeper:0xf4dfa0};
+ const color=colors[name],isKeeper=name==='Keeper',size=isKeeper?1.5:1;
+ const g=new THREE.Group(),body=new THREE.Group();world.add(g);g.add(body);g.position.set(x,0,z);g.scale.setScalar(size);
+ const skin=new THREE.MeshPhysicalMaterial({color,roughness:.24,clearcoat:1,clearcoatRoughness:.16});
+ const cyan=mat(0x65d9e7,{roughness:.23}),dark=mat(0x14283e,{roughness:.12});
+ const round=(parent,r,material,x,y,z,scale=[1,1,1])=>ellipsoid(parent,r,color,x,y,z,scale,material);
+ const tube=(parent,points,r,material)=>{const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,24,r,8,false),material);parent.add(mesh);mesh.castShadow=true;return mesh;};
+ round(body,.57,skin,0,.83,0,[1,.94,.9]);
+ for(const side of [-1,1]){
+  round(body,.187,dark,side*.265,.88,.432,[1,1,.68]);
+  round(body,.047,mat(0xffffff,{roughness:.1}),side*.265-.045,.94,.549);
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(.255,.047,12,48),cyan);rim.position.set(side*.285,.89,.55);body.add(rim);
+  const lens=new THREE.Mesh(new THREE.CircleGeometry(.216,48),new THREE.MeshPhysicalMaterial({color:0xb7f3ff,transparent:true,opacity:.12,roughness:.08,depthWrite:false,side:THREE.DoubleSide}));lens.position.set(side*.285,.89,.566);body.add(lens);
+  tube(body,[[side*.53,.91,.55],[side*.57,.94,.22],[side*.51,.91,-.1]],.034,cyan);
+ }
+ tube(body,[[-.055,.91,.55],[0,.95,.57],[.055,.91,.55]],.036,cyan);
+ tube(body,[[-.085,.635,.489],[0,.603,.509],[.085,.635,.489]],.016,dark);
+ const tentacles=[];
+ for(let i=0;i<8;i++){
+  const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(),new THREE.Vector3(0,0,1)]);
+  const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,28,1,8,false),skin);mesh.castShadow=true;g.add(mesh);
+  const suckers=[];
+  for(let j=0;j<4;j++){
+   const disc=new THREE.Mesh(new THREE.CylinderGeometry(.036,.03,.018,12),mat(0xf4e8fa,{roughness:.5}));g.add(disc);suckers.push(disc);
+  }
+  let glove=null;
+  if(isKeeper&&i%2===0){glove=new THREE.Group();g.add(glove);round(glove,.14,mat(0xfff7e6),0,0,0,[1.15,1,.8]);round(glove,.065,mat(0xfff7e6),.12,-.02,.02);box(glove,.17,.07,.14,0x508b98,0,-.12,0);}
+  const tip=round(g,.028,skin,0,0,0);
+  tentacles.push({curve,mesh,suckers,glove,tip});
+ }
+ let prop=null;
+ if(isKeeper){
+  const cap=new THREE.Mesh(new THREE.SphereGeometry(.585,32,16,0,Math.PI*2,0,.9),mat(0x508b98,{roughness:.5}));cap.position.y=.84;body.add(cap);
+  round(body,.29,mat(0x508b98),0,1.22,.36,[1,.12,1]);
+ }else{
+  prop=new THREE.Group();g.add(prop);
+  if(name==='Inbox'){
+   box(prop,.29,.19,.035,0xfff7e6);tube(prop,[[-.14,.085,.024],[0,-.015,.024],[.14,.085,.024]],.009,cyan);
+  }else if(name==='Sales'){
+   box(prop,.29,.22,.12,0x537a78);tube(prop,[[-.06,.11,0],[-.06,.18,0],[.06,.18,0],[.06,.11,0]],.018,cyan);box(prop,.035,.04,.015,0xf4dfa0,0,0,.068);
+  }else if(name==='Finance'){
+   box(prop,.2,.28,.055,0x456473);box(prop,.15,.06,.012,0xbce8d3,0,.075,.035);
+   for(let row=0;row<3;row++)for(let col=0;col<3;col++)box(prop,.03,.025,.012,0xfff2d1,(col-1)*.055,-row*.047,.035);
+  }else{
+   const horn=new THREE.Mesh(new THREE.CylinderGeometry(.13,.045,.25,24,1,true),mat(0xffe8b7,{side:THREE.DoubleSide}));horn.rotation.z=-Math.PI/2;prop.add(horn);box(prop,.05,.16,.06,0x65d9e7,-.065,-.11,0);
+  }
+ }
+ g.userData={home:new THREE.Vector3(x,0,z),body,tentacles,size,prop};
+ label(name,'',g,[0,1.55,0],isKeeper?'agent keeper':'agent');return g;
+}
+function poseSpecs(g,t,walking,kick,save,hold){
+ const {tentacles,size,prop}=g.userData;
+ tentacles.forEach(({curve,mesh,suckers,glove,tip},i)=>{
+  const angle=i*Math.PI/4,radial=new THREE.Vector3(Math.cos(angle),0,Math.sin(angle));
+  curve.points=[];
+  for(let j=0;j<7;j++){
+   const u=j/6;
+   // The final section turns back toward the body while rising, forming a short curl.
+   const radius=.24+.67*u-.19*Math.pow(u,5);
+   const sway=motion.matches?0:Math.sin(t*(walking?9:2.4)-u*5+i)*(walking?.09:.025)*u;
+   const v=radial.clone().multiplyScalar(radius);v.y=.34*(1-u)+.105+.27*Math.pow(u,5)+sway;
+   if(i===2){v.z+=kick*u*.8;v.y+=kick*Math.sin(u*Math.PI)*.3;}
+   if(save&&i%2===0){const target=new THREE.Vector3((1.1-g.position.x)/size+(i===0?.12:i===4?-.12:0),(.65-g.position.y)/size,(5.05-g.position.z)/size);v.lerp(target,save*u*u);}
+   if(hold&&i%2===0){const a=i*Math.PI/4+u*2.4;v.lerp(new THREE.Vector3(Math.cos(a)*.19,.95/size+Math.sin(a)*.14,(5-g.position.z)/size+.14*Math.cos(u*Math.PI)),hold*u);}
+   curve.points.push(v);
+  }
+  curve.updateArcLengths();
+  const frames=curve.computeFrenetFrames(28,false),positions=mesh.geometry.attributes.position,normals=mesh.geometry.attributes.normal;
+  for(let j=0;j<=28;j++){
+   const u=j/28,center=curve.getPointAt(u),radius=.137*(1-u)+.028;
+   for(let k=0;k<=8;k++){
+    const a=k/8*Math.PI*2,n=frames.normals[j].clone().multiplyScalar(-Math.cos(a)).addScaledVector(frames.binormals[j],Math.sin(a));
+    const v=center.clone().addScaledVector(n,radius),index=j*9+k;positions.setXYZ(index,v.x,v.y,v.z);normals.setXYZ(index,n.x,n.y,n.z);
+   }
+  }
+  positions.needsUpdate=true;normals.needsUpdate=true;mesh.geometry.computeBoundingSphere();
+  suckers.forEach((disc,j)=>{
+   const u=.64+j*.095,point=curve.getPointAt(u),tangent=curve.getTangentAt(u);
+   const underside=new THREE.Vector3(0,-1,0).addScaledVector(tangent,tangent.y).normalize();
+   disc.position.copy(point).addScaledVector(underside,.137*(1-u)+.032);disc.quaternion.setFromUnitVectors(up,underside);disc.scale.setScalar(1-j*.12);
+  });
+  tip.position.copy(curve.getPointAt(1));
+  if(glove)glove.position.copy(tip.position);
+  if(prop&&i===0){prop.position.copy(curve.getPointAt(.94));prop.position.y+=.12;prop.rotation.y=-.2;}
+ });
+}
 function person(name,color,x,z){
+ if(style==='4')return specsPerson(name,x,z);
  const g=new THREE.Group();world.add(g);g.position.set(x,0,z);
  const isKeeper=name==='Keeper',size=isKeeper?1.48:1;
  g.scale.setScalar(size);
@@ -72,6 +161,7 @@ function person(name,color,x,z){
 }
 const up=new THREE.Vector3(0,1,0);
 function pose(g,t,walking,kick=0,save=0,hold=0){
+ if(style==='4'){poseSpecs(g,t,walking,kick,save,hold);return;}
  const {tentacles,body,size}=g.userData;
  const wave=motion.matches?0:Math.sin(t*3.3);
  body.scale.set(1,1,1);body.position.y=0;
@@ -167,9 +257,9 @@ function draw(t){
 
 function select(key){if(styles[key])build(key);}
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>select(b.dataset.style)));
-window.addEventListener('keydown',e=>{if(e.altKey||e.ctrlKey||e.metaKey||e.repeat)return;select({'1':'1','2':'2','3':'3'}[e.key]);});
+window.addEventListener('keydown',e=>{if(e.altKey||e.ctrlKey||e.metaKey||e.repeat)return;select({'1':'1','2':'2','3':'3','4':'4'}[e.key]);});
 window.addEventListener('resize',()=>{resize();draw(motion.matches?16:(performance.now()-epoch)/1000%25);});
-function playback(){ $('playback').textContent=motion.matches?'Reduced motion · Static BLOCK moment at 16 seconds':'25-second loop · Same sequence in all three styles';}
+function playback(){ $('playback').textContent=motion.matches?'Reduced motion · Static BLOCK moment at 16 seconds':'25-second loop · Same sequence in all four styles';}
 motion.addEventListener('change',()=>{epoch=performance.now();playback();draw(motion.matches?16:0);});
 build('1');playback();function animate(now){if(!motion.matches)draw((now-epoch)/1000%25);requestAnimationFrame(animate);}requestAnimationFrame(animate);
 </script>

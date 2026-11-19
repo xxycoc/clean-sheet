@@ -24,3 +24,16 @@ Desktop, phone and HOLD screenshots inspected; no page errors in the final contr
 Limitation: sandbox network permissions block jsDelivr. Browser checks substituted installed three.js 0.186.1 in test-only request routing and drove frames directly.
 Exact 0.160.0 rendering, live CDN loading, continuous full-speed playback and physical phone performance remain unverified; no substitute ships with the page.
 Only octopus.html and this report were added; existing files unchanged, temporary checks removed, no git commands run.
+
+## 4 ? Specs
+- Added the fourth button and key 4; the original three styles remain available.
+- Smooth clear-coated pastel heads, large cyan rims, bridge/arms, translucent lenses, glossy dark eyes, white highlights and curved smiles.
+- Eight tapered CatmullRom tube arms bend for idle, walking, kicks, saves and holds; curled tips have pale underside suckers.
+- Blue Inbox carries an envelope; mint Sales a briefcase; coral Finance a calculator; lilac Marketing a megaphone.
+- Yellow Keeper is 1.5x staff size, with a sporty cap and four gloves.
+- Compared the headless close-up with the supplied reference: similar oversized round glasses, pastel head and short curled arms; existing match-night lighting remains darker than its studio backdrop.
+- Shared 25-second script, captions, score and label placement logic retained; reduced motion stays on static BLOCK.
+- Final extracted module passes `node --check`; headless checks pass all four styles/keys, six timeline checkpoints, scores, 320/390px layouts and static reduced motion, with no page errors.
+- The unmodified page completed its continuous 25-second loop and restarted successfully in headless Chromium.
+- Browser verification used cached three.js 0.170.0 via test-only routing because sandbox networking blocks the CDN; the shipped import remains 0.160.0 only.
+- Exact 0.160.0 rendering, live CDN access and physical-device performance remain unverified. No models, textures or fonts downloaded; no git commands run.
