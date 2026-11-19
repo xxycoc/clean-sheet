@@ -201,7 +201,7 @@ export class Channel extends EventEmitter {
       const entry = { id: action.id, task: structuredClone(task), action, decision, status: 'pending' };
       this.queue.set(action.id, entry);
       this.emitEvent({ type: 'approval.queued', id: action.id, task_id: task.id, entry });
-      return result(`Held for the owner's approval: ${reason}`, data, true);
+      return result(`Held by the Keeper: ${reason}`, data, true);
     }
     return result('Allowed and executed in the local workspace.', { ...data, result: this.execute(task, action, decision) });
   }

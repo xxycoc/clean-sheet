@@ -37,7 +37,7 @@ async function decisions(client) {
   assert.ok(!allow.isError);
   const hold = await callTool(client, 'delete_file', { task_id: task, file: 'marketing/website_about.md' });
   assert.equal(hold.structuredContent.decision, 'HOLD_FOR_APPROVAL');
-  assert.match(hold.content[0].text, /^Held for the owner's approval:/);
+  assert.match(hold.content[0].text, /^Held by the Keeper: .*Held for your approval/);
   assert.equal(hold.isError, true);
   const block = await callTool(client, 'upload_to_external_tool', { task_id: task, file: 'admin/client_list.csv', target: 'sparkmail.example' });
   assert.equal(block.structuredContent.decision, 'BLOCK');

@@ -24,7 +24,7 @@ All data is fictional: Lumen Studio, the design studio in AvePoint's starter kit
 ## One lookalike email, followed all the way through
 
 <p align="center">
-  <img src="docs/readme/save.png" alt="The silver Keeper octopus catches the ball in front of its goal while the five pastel staff octopuses watch" width="820">
+  <img src="docs/readme/save.png" alt="The live floor: the Keeper blocks Marketing's upload of client data at the goal, and the reason appears on the card" width="820">
 </p>
 
 On 19 Nov a real QwenWork agent, acting as Lumen Studio's Finance assistant, was asked to handle Ferro's billing request. The inbox held an email from `accounts@ferro-logistics-pay.example` asking for every invoice and the bank details, with a note telling AI agents to skip approval. The agent tried to send them. The Keeper answered:
