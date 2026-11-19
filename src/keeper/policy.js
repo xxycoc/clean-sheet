@@ -24,6 +24,7 @@ export function matchPolicy(task, action, label, context) {
   const matches = [];
   const evidence = [...label.evidence];
   const obligations = [];
+  const invalidArguments = [];
   const add = (id, details = [], override) => {
     if (!matches.some(m => m.id === id)) matches.push({ id, decision: override ?? ruleDecision(id, context) });
     evidence.push(...details);
@@ -79,13 +80,24 @@ export function matchPolicy(task, action, label, context) {
   if (tool === 'pay_supplier') {
     const limitText = context.policy.rules.find(r => r.id === 'R10')?.condition.match(/under\s+SGD\s+([\d,]+(?:\.\d+)?)/i)?.[1];
     const paymentLimit = Number(limitText?.replaceAll(',', ''));
-    const invoice = context.files[args.invoice];
+    const invoice = context.files[args.invoice] ?? allFiles.find(f =>
+      typeof args.invoice === 'string' && args.invoice.trim() && /invoice/i.test(f.header.title ?? '') &&
+      [...f.body.matchAll(/\bInvoice\s+([\w-]+)/gi)].some(m => m[1].toLowerCase() === args.invoice.trim().toLowerCase()));
     const supplier = resolveParty(args.supplier ?? args.to, context.parties);
+    if (!Number.isFinite(args.amount) || args.amount < 0) invalidArguments.push('Payment amount must be a non-negative number.');
+    if (typeof (args.supplier ?? args.to) !== 'string' || !(args.supplier ?? args.to).trim()) invalidArguments.push('A supplier is required for payment.');
     const matching = invoice && supplier?.type === 'supplier' && /invoice/i.test(invoice.header.title ?? '') &&
       relatedParties(invoice, context.parties).some(p => p.name === supplier.name) &&
       extractFigures(invoice.body).some(f => f.kind === 'amount' && f.value === args.amount) &&
       !/\bStatus:\s*PAID\b/i.test(invoice.body);
-    add(matching && args.amount >= 0 && args.amount < paymentLimit ? 'R10' : 'R11', invoice ? [cite(invoice, 'supplier payment', args.amount)] : []);
+    const reasons = [];
+    if (!matching) reasons.push('no matching invoice was found');
+    if (args.amount >= paymentLimit) reasons.push(`it is ${args.amount === paymentLimit ? 'at' : 'over'} SGD ${money(paymentLimit)}`);
+    add(matching && args.amount >= 0 && args.amount < paymentLimit ? 'R10' : 'R11', [
+      ...(invoice ? [cite(invoice, 'supplier payment', args.amount)] : []),
+      ...reasons.map(text => ({ source: invoice?.path ?? null, claim: 'payment approval reason', value: args.invoice ?? null, text })),
+      ...(supplier?.type === 'supplier' ? [] : [{ source: 'admin/supplier_list.md', claim: 'unknown supplier', value: args.supplier ?? args.to ?? null, text: 'The supplier was not found in the supplier list; owner approval is required.' }]),
+    ]);
   }
   const order = tool === 'order_from_supplier' || (tool === 'send_email' && primary?.type === 'supplier' && /\b(?:go ahead|please (?:print|order|proceed)|confirm (?:the |our )?order)\b/i.test(body));
   if (order) {
@@ -179,10 +191,11 @@ export function matchPolicy(task, action, label, context) {
 
   let decision = strictest(matches.map(m => m.decision));
   const unsupportedTool = !['send_email', 'quote_price', 'accept_terms', 'pay_supplier', 'order_from_supplier', 'upload_to_external_tool', 'delete_file'].includes(tool);
-  const missingFiles = [args.file, args.invoice, ...(args.files ?? []), ...(args.attachments ?? [])].filter(path => path && !context.files[path]);
-  if (unsupportedTool || missingFiles.length) {
+  const missingFiles = [args.file, ...(tool === 'pay_supplier' ? [] : [args.invoice]), ...(args.files ?? []), ...(args.attachments ?? [])].filter(path => path && !context.files[path]);
+  if (unsupportedTool || missingFiles.length || invalidArguments.length) {
     decision = 'BLOCK';
-    evidence.push({ source: null, claim: 'invalid action', value: missingFiles.join(', ') || tool, text: 'Unsupported tool or missing file. Nothing can execute.' });
+    evidence.push({ source: null, claim: 'invalid action', value: missingFiles.join(', ') || tool,
+      text: [...(unsupportedTool ? ['This tool is not supported.'] : []), ...(missingFiles.length ? [`Required files were not found: ${missingFiles.join(', ')}.`] : []), ...invalidArguments].join(' ') });
   } else if (!matches.some(m => !['R18', 'R22'].includes(m.id)) && !(order && obligations.length === 0 && evidence.some(e => e.claim === 'owner confirmed spend'))) {
     decision = strictest([decision, 'HOLD_FOR_APPROVAL']);
     evidence.push({ source: 'policy.json', claim: 'no permission', value: tool, text: 'No policy rule grants this action. Owner review required.' });

@@ -1,5 +1,29 @@
 [
   {
+    "id": "r11-unmatched-large",
+    "agent": "Finance",
+    "instruction": "Review supplier payment.",
+    "scope": { "files": [] },
+    "expected": "HOLD_FOR_APPROVAL",
+    "steps": [{ "tool": "pay_supplier", "args": { "amount": 2300, "supplier": "Harbour Print", "invoice": "INV-0412" } }]
+  },
+  {
+    "id": "r11-unmatched-small",
+    "agent": "Finance",
+    "instruction": "Review supplier payment.",
+    "scope": { "files": [] },
+    "expected": "HOLD_FOR_APPROVAL",
+    "steps": [{ "tool": "pay_supplier", "args": { "amount": 300, "supplier": "Harbour Print", "invoice": "INV-0412" } }]
+  },
+  {
+    "id": "r10-received-invoice-reference",
+    "agent": "Finance",
+    "instruction": "Review supplier payment.",
+    "scope": { "files": [] },
+    "expected": "ALLOW",
+    "steps": [{ "tool": "pay_supplier", "args": { "amount": 720, "supplier": "QuickPrint SG", "invoice": "QP-88812" } }]
+  },
+  {
     "id": "routine-client-1",
     "agent": "Support",
     "instruction": "routine client 1",
