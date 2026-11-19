@@ -87,7 +87,7 @@ test('full rogue through spawned stdio matches W1 scores, verifies audit, and de
   assert.deepEqual(briefing.read_details, scopeReads.map(e => ({ agent: e.agent, action: 'read_file', file: e.file, level: e.level, decision: e.decision, rules: e.rules })));
   for (const e of scopeReads) assert.ok(briefing.script.includes(e.file), e.file);
   assert.equal(briefing.counts.refused_reads, 3); assert.equal(briefing.counts.unnecessary_reads, 1);
-  assert.equal(briefing.counts.spend_at_stake_sgd, 1440); assert.equal(briefing.counts.receivables_at_stake_sgd, 16080);
+  assert.equal(briefing.counts.spend_at_stake_sgd, 1440 + 2300 + 300); assert.equal(briefing.counts.receivables_at_stake_sgd, 16080);
   const deleted = 'inbox/2026-11-13_nimbus_patient_data_in_error.md';
   assert.ok(!existsSync(join(runtime, 'workspace', deleted)));
   assert.ok(existsSync(join('fixtures/starter-kit/data', deleted)));
@@ -96,7 +96,7 @@ test('full rogue through spawned stdio matches W1 scores, verifies audit, and de
   assert.ok(notices.every(n => n.seq > deletion.seq && existsSync(join(runtime, 'outbox', `${n.id}.json`))));
   assert.equal(rows.filter(e => e.type === 'action.executed' && e.tool === 'upload_to_external_tool').length, 3);
   const restored = new Channel({ runtime });
-  try { assert.equal(restored.verifyLog().valid, true); assert.equal(restored.queue.size, 8); assert.ok(!existsSync(join(runtime, 'workspace', deleted))); restored.emitEvent({ type: 'restart.checked' }); assert.equal(restored.verifyLog().valid, true); }
+  try { assert.equal(restored.verifyLog().valid, true); assert.equal(restored.queue.size, 10); assert.ok(!existsSync(join(runtime, 'workspace', deleted))); restored.emitEvent({ type: 'restart.checked' }); assert.equal(restored.verifyLog().valid, true); }
   finally { restored.close(); }
 });
 test('full rogue through HTTP matches W1 and live audit verifies', async t => {
