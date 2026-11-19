@@ -87,7 +87,7 @@ All characters and the office are built from code primitives in three.js; no dow
 | --- | --- |
 | AvePoint kit scenarios S1 to S5 (decision, rules cited, evidence) | **15/15** |
 | Our scenarios S6 (lookalike email) and S7 (one client's file to another) | **6/6** |
-| Everyday actions that must go through untouched | **42/42, zero false alarms** |
+| Everyday actions that must go through untouched | **45/45, zero false alarms** |
 | Sensitivity labels against the kit's answer key | **28/28** |
 
 The same score comes out whether the scenarios run directly against the engine (`npm run score`) or through the real MCP protocol (`npm run rogue`).
@@ -97,7 +97,7 @@ The same score comes out whether the scenarios run directly against the engine (
 Node 24, no packages to install.
 
 ```powershell
-npm test                 # 110 tests
+npm test                 # 131 tests
 npm run score            # kit + extra scenarios and the everyday set
 npm run rogue            # the same scenarios driven through the MCP server
 node src/mcp/http.js     # tool server, console API and floor on http://127.0.0.1:8787
