@@ -8,7 +8,9 @@ const numberPattern = `(?:\\d+(?:,\\d{3})*(?:\\.\\d+)?|${Object.keys(words).join
 
 export function extractFigures(text) {
   const figures = [];
-  const occupied = [];
+  // Clock times are scheduling details, not the bare prices accepted after "at".
+  const occupied = [...text.matchAll(/\b(?:[01]?\d|2[0-3]):[0-5]\d(?:\s*[ap]m\b)?|\b(?:0?[1-9]|1[0-2])\s*[ap]m\b/gi)]
+    .map(m => [m.index, m.index + m[0].length]);
   function scan(regex, kind, value) {
     for (const match of text.matchAll(regex)) {
       const start = match.index, end = start + match[0].length;

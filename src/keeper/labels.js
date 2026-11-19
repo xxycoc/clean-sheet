@@ -1,4 +1,4 @@
-import { relatedParties } from './parties.js';
+import { emails, relatedParties } from './parties.js';
 
 export const levels = ['public', 'internal', 'client-confidential', 'regulated'];
 export function highest(values, taxonomy) {
@@ -35,13 +35,45 @@ export function labelFile(file, context = {}) {
     evidence: [{ source: file.path, claim: 'data label', value: level, text: file.header.title ?? file.body.slice(0, 160) },
       ...(companion && !file.header.sensitivity ? [{ source: companion.path, claim: 'companion label', value: level, text: companion.body }] : [])] };
 }
-export function labelOutgoing(text, readFiles, attachments, context) {
+// Match material, not the mere mention of a client or a recipient address.
+function words(text) { return text.toLowerCase().match(/[a-z0-9]+/g) ?? []; }
+function carries(text, source, recipients) {
+  const stripRecipients = value => value.replace(/[\w.+-]+@[\w.-]+/g, address =>
+    recipients.includes(address.toLowerCase().replace(/[.-]+$/, '')) ? ' ' : address);
+  const outgoing = stripRecipients(text).toLowerCase();
+  const content = stripRecipients(source).toLowerCase();
+  if (emails(content).some(address => emails(outgoing).includes(address))) return true;
+  // Numeric tokens include figures, phone numbers and mixed letter/digit identifiers.
+  // Single digits alone are too common to establish provenance.
+  const tokens = value => value.match(/\b(?:[a-z]*\d[\da-z]*(?:[,. -]\d+)*[a-z]*)\b/g) ?? [];
+  const normalizeToken = value => value.replace(/[ ,.-]/g, '');
+  const sent = new Set(tokens(outgoing).map(normalizeToken));
+  if (tokens(content).some(token => normalizeToken(token).length >= 2 && sent.has(normalizeToken(token)))) return true;
+  const sourceWords = words(content), sentWords = ` ${words(outgoing).join(' ')} `;
+  return sourceWords.some((_, i) => i + 5 <= sourceWords.length &&
+    sentWords.includes(` ${sourceWords.slice(i, i + 5).join(' ')} `));
+}
+
+export function labelOutgoing(text, readFiles, attachments, context, recipients = []) {
   const own = detectContent(text, context.taxonomy, context.parties);
   const approved = Object.values(context.files).find(f => f.header.sensitivity === 'public' &&
     text.trim().length >= 20 && f.body.includes(text.trim()));
   if (approved && own.level !== 'regulated') own.level = 'public';
-  const inherited = [...new Map([...readFiles, ...attachments].map(f => [f.path, f])).values()];
-  const labels = inherited.map(file => ({ file, ...labelFile(file, context) }));
+  const attached = new Set(attachments.map(f => f.path));
+  const inherited = [...new Map([...readFiles, ...attachments]
+    .filter(file => attached.has(file.path) || carries(text, file.body, recipients))
+    .map(f => [f.path, f])).values()];
+  const labels = inherited.map(file => {
+    const label = labelFile(file, context);
+    // A contact table contains multiple clients; attribute only the rows being sent.
+    if (!attached.has(file.path) && /^client,contact,email,/m.test(file.body)) {
+      label.clients = [...new Set(file.body.split(/\r?\n/).slice(1)
+        .filter(row => carries(text, row, recipients))
+        .flatMap(row => relatedParties({ path: '', header: {}, body: row }, context.parties))
+        .filter(p => p.type === 'client').map(p => p.name))];
+    }
+    return { file, ...label };
+  });
   return { level: highest([own.level, ...labels.map(l => l.level)], context.taxonomy),
     inherited_from: inherited.map(f => f.path), items: labels, own,
     evidence: [...labels.flatMap(l => l.evidence), ...(approved ? [{ source: approved.path, claim: 'published content', value: 'public', text }] : [])] };

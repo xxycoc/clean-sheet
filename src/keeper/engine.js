@@ -22,14 +22,21 @@ export function createKeeper(input) {
       evidence: [...label.evidence, { source: file.path, claim: 'task scope', value: in_scope, text: in_scope ? 'Needed for the declared task.' : 'Outside the declared task scope.' }] };
   }
   function decideAction(task, action) {
-    const readFiles = (task.reads ?? []).map(path => context.files[path]).filter(Boolean);
+    // Retain material seen before a file was replaced or deleted, as well as current content.
+    const readFiles = (task.reads ?? []).flatMap(path => [context.files[path], task.observed_files?.[path]]).filter(Boolean);
     const args = action.args ?? {};
     const attachments = [...new Set([args.file, ...(args.files ?? []), ...(args.attachments ?? [])].filter(Boolean))].map(path => context.files[path]).filter(Boolean);
-    const label = labelOutgoing(args.body ?? '', readFiles, attachments, context);
+    const recipients = [...emails(args.to), ...emails(args.cc), ...emails(args.bcc)];
+    // Routing and provenance metadata do not travel as message content.
+    const { to, cc, bcc, file, files, attachments: attachedPaths, instruction_source, confirmation_file, ...payload } = args;
+    const label = labelOutgoing(Object.values(payload).map(value => typeof value === 'string' ? value : JSON.stringify(value)).join('\n'),
+      readFiles, attachments, context, recipients);
     const proposed = { type: 'action.proposed', id: action.id ?? `${task.id}-action`, task_id: task.id, agent: task.agent,
       tool: action.tool, args: structuredClone(args), level: label.level, inherited_from: label.inherited_from };
     const result = matchPolicy(task, action, label, context);
-    result.scope_creep = readFiles.filter(f => !inScope(task, f, context.parties)).map(f => f.path);
+    const readDecisions = (task.reads ?? []).map(path => decideRead(task, path));
+    result.scope_creep = readDecisions.filter(read => !read.in_scope).map(read => read.file);
+    result.blocked_reads = readDecisions.filter(read => read.decision === 'BLOCK').map(read => read.file);
     const decision = { type: 'keeper.decision', id: proposed.id, task_id: task.id, agent: task.agent,
       decision: result.decision, rules: result.rules, data_level: label.level, evidence: result.evidence,
       obligations: result.obligations, owner_message: ownerMessage(task, action, result) };
