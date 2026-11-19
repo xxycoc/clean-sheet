@@ -1,10 +1,10 @@
 import { realpathSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, writeFileSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { join, resolve, relative, isAbsolute, extname } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { Channel, defaultRuntime } from './channel.js';
+import { Channel, defaultRuntime, projectRoot } from './channel.js';
 import { createProtocol, parseDispatch } from './protocol.js';
 import { score } from '../../scripts/score.js';
 import { makeBriefing } from '../briefing.js';
@@ -49,6 +49,25 @@ export function createHttpServer({ channel = new Channel(), replayRows = null, o
       res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, MCP-Session-Id, MCP-Protocol-Version, Last-Event-ID');
       res.setHeader('Access-Control-Expose-Headers', 'MCP-Session-Id');
       const url = new URL(req.url, 'http://localhost');
+      // Validate the raw path before URL normalization can remove dot segments.
+      const rawPath = decodeURIComponent(req.url.split('?')[0]);
+      if (rawPath.startsWith('/floor')) {
+        if (rawPath.includes('\\') || rawPath.includes('\0') || rawPath.split('/').some(p => p === '..' || p === '.')) return json(res, 400, { error: 'Invalid floor path' });
+        if (req.method === 'GET' && rawPath === '/floor') { res.writeHead(302, { Location: `/floor/${url.search}` }); res.end(); return; }
+        if (req.method === 'GET' && rawPath.startsWith('/floor/')) {
+          const root = resolve(projectRoot, 'public/floor');
+          const target = resolve(root, rawPath.slice(7) || 'index.html');
+          const inside = path => { const rel = relative(root, path); return rel !== '..' && !rel.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) && !isAbsolute(rel); };
+          if (!inside(target)) return json(res, 400, { error: 'Invalid floor path' });
+          try {
+            if (!inside(realpathSync(target)) || !statSync(target).isFile()) return json(res, 404, { error: 'Not found' });
+            const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json' };
+            if (!types[extname(target)]) return json(res, 404, { error: 'Not found' });
+            res.writeHead(200, { 'Content-Type': `${types[extname(target)]}; charset=utf-8`, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Cache-Control': 'no-cache' });
+            res.end(readFileSync(target)); return;
+          } catch (error) { if (['ENOENT', 'ENOTDIR'].includes(error.code)) return json(res, 404, { error: 'Not found' }); throw error; }
+        }
+      }
       if (url.pathname.startsWith('/api/') &&
           req.headers.authorization !== `Bearer ${ownerToken}` && url.searchParams.get('token') !== ownerToken) return json(res, 401, { error: 'Owner token required' });
       if (req.method === 'OPTIONS') return json(res, 204, null);

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>Clean Sheet · Live floor</title><link rel="stylesheet" href="floor.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script defer src="sample-events.js"></script><script defer src="runtime.js"></script></head>
+<body><main>
+<header><div><p class="eyebrow">CLEAN SHEET / MATCH NIGHT</p><h1>Good work. Safe hands.</h1></div><div id="score" title="Saves: blocked actions. Held: pending approvals. Conceded: executed without permission."><span>Saves <b id="saves">0</b></span><span>Held <b id="held">0</b></span><span>Conceded <b id="conceded">0</b></span></div></header>
+<div class="toolbar"><div class="modes" aria-label="Playback source"><button id="live" aria-pressed="false">Live</button><button id="replay" aria-pressed="false">Replay</button><button id="sample" aria-pressed="true">Sample</button></div><p id="connection" role="status">Loading sample…</p><label class="load">Load event log<input id="log" type="file" accept=".json,.jsonl,application/json"></label></div>
+<div class="legend" aria-label="Highest room sensitivity"><span style="--color:#58ce93">Public</span><span style="--color:#72b7ef">Internal</span><span style="--color:#f1ba64">Client-confidential</span><span style="--color:#f08091">Regulated</span><span class="hint">Click a teammate, ball or decision to inspect</span></div>
+<section id="stage" aria-label="Live office floor"><canvas id="view" aria-label="Three dimensional office floor"></canvas><svg id="leaders" aria-hidden="true"></svg><div id="tags"></div><div id="flat" hidden></div><p id="fallback" role="status" hidden></p><button id="card" hidden></button><div id="bubble" hidden></div></section>
+<section class="transport" aria-label="Replay controls"><button id="play" aria-label="Play replay">Play</button><label>Speed <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select></label><label class="scrub">Event <input id="cursor" type="range" min="-1" max="0" value="-1" aria-label="Event cursor"></label><output id="position">0 / 0</output></section>
+<section class="caption" aria-live="polite"><strong id="event-type">Ready</strong><p id="event-detail">The crew is ready for work.</p></section>
+<footer><span id="queue">No approvals waiting</span><span>Rules as code · Local demo actions do not deliver externally</span></footer>
+</main><aside id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" hidden><button id="close" aria-label="Close decision details">Close ×</button><p class="eyebrow">DECISION RECORD</p><h2 id="drawer-title"></h2><div id="drawer-content"></div></aside><div id="shade" hidden></div>
+</body></html>

@@ -1,0 +1,138 @@
+import { STAFF, ZONES, COLORS, home } from './state.js';
+import { characterFactory } from './characters.js';
+
+export async function createFloor(canvas, tags, leaders, inspect, changed) {
+  let T;
+  try { T = await import('three'); }
+  catch (cause) { throw new Error('Pinned three.js download unavailable', { cause }); }
+  const { makeCharacter, poseCharacter } = characterFactory(T);
+  let renderer;
+  try { renderer = new T.WebGLRenderer({ canvas, antialias: true }); }
+  catch (cause) { throw new Error('WebGL unavailable', { cause }); }
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+  renderer.outputColorSpace = T.SRGBColorSpace; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;
+  const scene = new T.Scene(); scene.background = new T.Color('#102630');
+  scene.add(new T.HemisphereLight(0xe2f3ff, 0x435450, 2.4));
+  const sun = new T.DirectionalLight(0xfff2dc, 3.3); sun.position.set(-5, 18, 12); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 12, bottom: -12, far: 60 }); sun.shadow.normalBias = .035; scene.add(sun);
+  const camera = new T.OrthographicCamera(-15, 15, 8, -8, .1, 100); camera.position.set(2.5, 20, 29); camera.lookAt(0, .4, 0); camera.updateMatrixWorld();
+  const materials = new Map();
+  const mat = color => { if (!materials.has(color)) materials.set(color, new T.MeshStandardMaterial({ color, roughness: .8, flatShading: true })); return materials.get(color); };
+  function mesh(parent, geometry, material, x, y, z) { const m = new T.Mesh(geometry, material); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; }
+  const box = (p, w, h, d, c, x = 0, y = 0, z = 0) => mesh(p, new T.BoxGeometry(w, h, d), mat(c), x, y, z);
+  const cylinder = (p, r, h, c, x = 0, y = 0, z = 0) => mesh(p, new T.CylinderGeometry(r, r * .8, h, 10), mat(c), x, y, z);
+  const sphere = (p, r, c, x = 0, y = 0, z = 0) => mesh(p, new T.IcosahedronGeometry(r, 1), mat(c), x, y, z);
+  function desk(x, z, mail = false) {
+    box(scene, 1.4, .12, .7, '#9eafb0', x, .85, z);
+    for (const dx of [-.55, .55]) for (const dz of [-.25, .25]) box(scene, .07, .8, .07, '#486674', x + dx, .4, z + dz);
+    if (mail) for (let i = 0; i < 3; i++) box(scene, .42, .04, .32, '#ebdfbd', x + .3, .95 + i * .05, z);
+    else { box(scene, .65, .43, .06, '#243b49', x, 1.15, z - .08); box(scene, .55, .32, .02, '#8ad3db', x, 1.15, z - .035); box(scene, .4, .03, .2, '#d7e6e5', x, .94, z + .18); }
+  }
+  function chair(x, z) { box(scene, .55, .1, .5, '#637c90', x, .45, z); box(scene, .55, .5, .08, '#637c90', x, .7, z + .23); cylinder(scene, .06, .4, '#243b49', x, .2, z); }
+  function plant(x, z) { cylinder(scene, .27, .5, '#e0b49a', x, .25, z); cylinder(scene, .045, .7, '#59826a', x, .75, z); for (const [dx, dy] of [[-.2, .8], [.2, .95], [0, 1.2]]) sphere(scene, .26, '#76b895', x + dx, dy, z); }
+  function cabinet(x, z, color) { box(scene, .55, .95, .45, '#526977', x, .48, z); for (let k = 0; k < 3; k++) { box(scene, .49, .26, .03, color, x, .18 + k * .3, z + .24); box(scene, .16, .025, .04, '#dae3d8', x, .21 + k * .3, z + .27); } }
+  box(scene, 26.5, .22, 11.7, '#24433e', 0, -.2, 0);
+  box(scene, 26.5, .5, .16, '#46625e', 0, .05, -5.8);
+  const labelItems = [], mats = new Map();
+  function label(name, position, sub = '', type = 'room') {
+    const el = document.createElement(type === 'agent' ? 'button' : 'div'); el.className = `tag ${type}`; el.textContent = name;
+    if (sub) { const small = document.createElement('small'); small.textContent = sub; el.append(small); }
+    if (type === 'agent') el.onclick = () => inspect(name);
+    const leader = document.createElementNS('http://www.w3.org/2000/svg', 'line'); leaders.append(leader); tags.append(el);
+    const item = { name, position, el, leader, type }; labelItems.push(item); return item;
+  }
+  for (const z of ZONES) {
+    const c = COLORS[z.level] ?? '#80ada5';
+    const material = new T.MeshStandardMaterial({ color: c, transparent: true, opacity: .12, roughness: .9 });
+    mesh(scene, new T.BoxGeometry(z.w, .025, z.d), material, z.x, -.04, z.z);
+    for (const side of [-1, 1]) { box(scene, z.w, .025, .035, c, z.x, -.01, z.z + side * z.d / 2); box(scene, .035, .025, z.d, c, z.x + side * z.w / 2, -.01, z.z); }
+    const item = label(z.name, () => new T.Vector3(z.x, .1, z.z - z.d / 2 + .15), z.level ?? (z.name === 'Staff' ? 'AI staff' : z.name === 'Keeper' ? 'Rules as code' : 'Outbox · Uploads · Supplier'));
+    item.el.style.setProperty('--color', c); mats.set(z.name, { material, item });
+    if (z.level && z.name !== 'Inbox') cabinet(z.x - 1.45, z.z - .25, c);
+  }
+  STAFF.forEach((n, i) => { const p = home(n); desk(p.x + .4, p.z - .5); chair(p.x + .4, p.z + .35); });
+  desk(-10, 1, true); cabinet(-11, 3.3, '#83b8d0'); plant(-10, -3.8); plant(-1, 0); plant(11, 3.6);
+  // Window, wall clock, goal net and outside door are all primitives.
+  box(scene, 2.4, 2.5, .13, '#365963', -10, 1.25, -1.6);
+  box(scene, 2.1, 1.65, .15, '#88bbc4', -10, 1.55, -1.5);
+  box(scene, .08, 1.7, .18, '#e3e9d5', -10, 1.55, -1.4); box(scene, 2.2, .08, .18, '#e3e9d5', -10, 1.55, -1.4);
+  const clock = cylinder(scene, .42, .07, '#e1e7d9', -5.7, 1.9, -5.6); clock.rotation.x = Math.PI / 2;
+  box(scene, .035, .25, .04, '#283a45', -5.7, 2, -5.54); const hand = box(scene, .23, .035, .04, '#283a45', -5.6, 1.9, -5.54); hand.rotation.z = -.3;
+  for (const z of [-1.6, 1.6]) cylinder(scene, .07, 2.9, '#e6ecde', 8.3, 1.45, z);
+  box(scene, .12, .12, 3.3, '#e6ecde', 8.3, 2.9, 0);
+  const netMaterial = new T.LineBasicMaterial({ color: '#99b9af', transparent: true, opacity: .35 });
+  for (let y = 0; y <= 2.8; y += .35) scene.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(8.8, y, -1.6), new T.Vector3(8.8, y, 1.6)]), netMaterial));
+  for (let z = -1.6; z <= 1.6; z += .32) scene.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(8.8, 0, z), new T.Vector3(8.8, 2.9, z)]), netMaterial));
+  box(scene, 1.7, 2.8, .2, '#6e9d98', 11.3, 1.4, -2.9); box(scene, 1.35, 2.5, .23, '#172d34', 11.3, 1.25, -2.8); sphere(scene, .07, '#efd3a2', 11.8, 1.2, -2.64);
+  const people = Object.fromEntries(STAFF.map((n, i) => [n, makeCharacter(i, scene)]));
+  const keeper = makeCharacter(5, scene); keeper.root.position.set(7.1, 0, .1); keeper.root.rotation.y = -.2; keeper.props.ball.visible = false;
+  const villain = makeCharacter(7, scene); villain.root.position.set(-10, 0, -1.1); villain.root.visible = false;
+  const keeperTag = label('Keeper', () => keeper.root.position.clone().add(new T.Vector3(0, 2.9, 0)), '', 'agent'); keeperTag.el.classList.add('keeper');
+  for (const n of STAFF) { const m = people[n]; m.root.rotation.y = -.08; label(n, () => m.root.position.clone().add(new T.Vector3(0, 2.1, 0)), '', 'agent'); poseCharacter(m, 0, true); }
+  const villainTag = label('Untrusted sender', () => villain.root.position.clone().add(new T.Vector3(0, 2.3, 0)), '', 'room');
+  const ball = new T.Group(); scene.add(ball); mesh(ball, new T.SphereGeometry(.23, 24, 16), new T.MeshStandardMaterial({ color: '#f8f5e7' }), 0, 0, 0);
+  for (let i = 0; i < 6; i++) sphere(ball, .065, '#233542', Math.cos(i * Math.PI / 3) * .19, Math.sin(i * Math.PI / 3) * .19, .1);
+  let state, from = {}, started = 0, duration = 0, width = 1, height = 1, previousBall, previousVillain = false, keeperPose = 0, previousKeeperPose = 0;
+  function resize() {
+    width = canvas.parentElement.clientWidth; height = canvas.parentElement.clientHeight; renderer.setSize(width, height, false);
+    const points = [];
+    for (const x of [-13.4, 13.4]) for (const y of [0, 3.4]) for (const z of [-5.9, 5.9]) points.push(new T.Vector3(x, y, z).applyMatrix4(camera.matrixWorldInverse));
+    const minX = Math.min(...points.map(p => p.x)), maxX = Math.max(...points.map(p => p.x));
+    const minY = Math.min(...points.map(p => p.y)), maxY = Math.max(...points.map(p => p.y));
+    const aspect = width / height, halfH = Math.max((maxY - minY) / 2, (maxX - minX) / aspect / 2) * 1.06;
+    const cx = (maxX + minX) / 2, cy = (maxY + minY) / 2;
+    camera.left = cx - halfH * aspect; camera.right = cx + halfH * aspect; camera.top = cy + halfH; camera.bottom = cy - halfH; camera.updateProjectionMatrix();
+  }
+  function update(next, animate) {
+    from = Object.fromEntries(STAFF.map(n => [n, people[n].root.position.clone()])); previousBall = ball.visible ? ball.position.clone() : null;
+    previousVillain = state?.villain ?? false; previousKeeperPose = keeperPose; state = next; started = performance.now(); duration = animate ? 650 : 0;
+    for (const r of state.rooms) if (r.level) { const m = mats.get(r.name); m.material.color.set(COLORS[r.level]); m.item.el.style.setProperty('--color', COLORS[r.level]); m.item.el.querySelector('small').textContent = r.level; }
+  }
+  const project = p => { const v = p.clone().project(camera); return { x: (v.x + 1) * width / 2, y: (1 - v.y) * height / 2 }; };
+  function draw(now) {
+    if (!state) return { active: false, occupied: [], anchor: { x: width / 2, y: height / 2 } };
+    const t = duration ? Math.min(1, (now - started) / duration) : 1, eased = t * t * (3 - 2 * t);
+    for (const n of STAFF) {
+      const m = people[n], a = state.agents[n], destination = new T.Vector3(a.x, 0, a.z);
+      m.root.position.copy(from[n]).lerp(destination, eased);
+      poseCharacter(m, t < 1 ? t * 2 : 0, true);
+      if (t < 1 && from[n].distanceTo(destination) > .1) m.root.position.y = Math.sin(t * Math.PI * 6) * .06;
+      if (state.ball?.phase === 'flight' && n === state.ball.agent) m.g.rotation.z = -.2 * Math.sin(t * Math.PI);
+    }
+    keeperPose = T.MathUtils.lerp(previousKeeperPose, state.keeper === 'save' ? 2 : state.keeper === 'hold' ? 5.4 : 0, eased);
+    poseCharacter(keeper, keeperPose, true); keeper.props.ball.visible = false;
+    for (const [name, m] of mats) {
+      const warning = state.alert && state.event?.file?.split('/')[0].toLowerCase() === name.toLowerCase();
+      m.material.emissive.set(warning ? '#f1ba64' : '#000000');
+      m.material.emissiveIntensity = warning ? .3 + .5 * Math.sin(t * Math.PI * 3) ** 2 : 0;
+    }
+    villain.root.visible = state.villain || (previousVillain && t < 1); villain.root.position.x = -10 - (!state.villain ? eased * 2 : 0); poseCharacter(villain, 5.4, true);
+    ball.visible = !!state.ball;
+    if (state.ball) { const b = state.ball, dest = new T.Vector3(b.x, b.y, b.z); const origin = previousBall ?? new T.Vector3(4.4, .3, 0); ball.position.copy(origin).lerp(dest, eased); if (t < 1) ball.position.y += Math.sin(t * Math.PI) * .8; ball.rotation.z = -t * 5; }
+    const occupied = [];
+    for (const l of [...labelItems].sort((a, b) => Number(b.type === 'agent') - Number(a.type === 'agent'))) {
+      const visible = l !== villainTag || villain.root.visible; l.el.hidden = !visible; l.leader.style.display = visible ? '' : 'none'; if (!visible) continue;
+      l.el.classList.toggle('inactive', l.type === 'agent' && l.name !== state.activeAgent && l.name !== 'Keeper');
+      const p = project(l.position()), w = l.el.offsetWidth, h = l.el.offsetHeight;
+      let x = Math.max(5, Math.min(width - w - 5, p.x - w / 2)), y = Math.max(5, Math.min(height - h - 5, p.y - h));
+      for (let pass = 0; pass < labelItems.length; pass++) { const hit = occupied.find(b => x < b.x + b.w + 4 && x + w + 4 > b.x && y < b.y + b.h + 4 && y + h + 4 > b.y); if (!hit) break; y = Math.max(4, hit.y - h - 5); }
+      l.el.style.left = `${x}px`; l.el.style.top = `${y}px`; occupied.push({ x, y, w, h });
+      l.leader.setAttribute('x1', p.x); l.leader.setAttribute('y1', p.y + 7); l.leader.setAttribute('x2', x + w / 2); l.leader.setAttribute('y2', y + h);
+    }
+    renderer.render(scene, camera);
+    return { active: t < 1, occupied, anchor: project(ball.visible ? ball.position : new T.Vector3(7, 1, 0)) };
+  }
+  const ray = new T.Raycaster();
+  canvas.addEventListener('click', event => {
+    const rect = canvas.getBoundingClientRect(); ray.setFromCamera(new T.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1), camera);
+    for (const hit of ray.intersectObjects([ball, keeper.root, ...Object.values(people).map(m => m.root)], true)) {
+      let obj = hit.object; while (obj.parent && obj.parent !== scene) obj = obj.parent;
+      if (obj === ball && ball.visible) { inspect(state.ball?.id); return; }
+      if (obj === keeper.root) { inspect('Keeper'); return; }
+      const name = STAFF.find(n => people[n].root === obj); if (name) { inspect(name); return; }
+    }
+  });
+  canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); changed('WebGL context lost'); });
+  resize(); return { resize, update, draw };
+}
