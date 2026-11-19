@@ -6,7 +6,7 @@ const motion = matchMedia('(prefers-reduced-motion: reduce)');
 const params = new URLSearchParams(location.search);
 const token = params.get('token');
 let server;
-try { const url = new URL(params.get('server')); if (url.protocol === 'https:') server = url; } catch {}
+try { const url = new URL(params.get('server')); if (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) server = url; } catch {}
 const types = ['task.started', 'task.ended', 'file.read', 'directory.listed', 'action.proposed', 'keeper.decision', 'approval.queued', 'owner.decision', 'action.executed', 'action.failed', 'notification.queued', 'briefing.ready'];
 let events = [], index = -1, state = sceneAt([], -1), mode = 'sample', playing = false, timer, stream, seen = new Set(), liveReady = false, historyTimer;
 let floor, loading = false, failed = '', frame = 0, flatMode = true, lastFocus, selected;
