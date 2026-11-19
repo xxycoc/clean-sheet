@@ -1,0 +1,19 @@
+# Clean Sheet crew line-up
+- Marketing: wide raised arms, star sunglasses and tall selfie stick; megaphone gives the second clear outline. Selfie and shout poses implemented.
+- Sales: swept-back tuft, striped tie and extended handshake arm; briefcase and flipping DEAL sign complete the closer silhouette.
+- Finance: green visor and two garters distinguish the accountant; calculator tapping and bouncing gold stack are readable in focus.
+- Ops: domed yellow hard hat, upright broom and recycling bin form a clean workwear silhouette; sweeping and paper toss implemented.
+- Support: headset arch, microphone and pink mug distinguish the curious helper; sideways peek, sip and rising puff spheres implemented.
+- Keeper A: silver-white body at 1.4x staff scale, green number-1 jersey, peaked flat cap and four gloves; no specs; sideways dive and wrapped catch.
+- Keeper B: identical Keeper proportions and action in pastel yellow, placed beside silver for direct comparison; no specs.
+- Villain: pointed grey-green mantle, side fins and ten arms; gold fake specs, false nose and attached twirled moustache distinguish the disguise.
+- Mascot: half-size peach ball-kid with backwards cap and no specs; running bounce, ball pickup and overhead hold implemented.
+- Shared Specs-derived construction: smooth pastel heads, glossy eyes, oversized cyan staff frames, tapered curved arms and pale suckers; all geometry is procedural.
+- Interaction: 20-second turns, clickable/tappable portraits, keys 1–9, centred enlarged focus, previous/next controls, keyboard focus containment and Escape return.
+- Reduced motion: fixed three-quarter signature poses, including after resize and selection; no turning or action playback.
+- Verification: extracted module passes `node --check`; headless Chromium checked nine focus keys, Escape, horizontal scrolling, 1920×1080, 390px and 320px views with no page errors.
+- Visual QA: inspected desktop cast, individual silhouettes, all signature actions and phone focus frames; corrected lighting, focus size, dive clearance and prop resets.
+- Playback: headless page ran beyond a full 20-second turn; reduced-motion canvas screenshots matched across a one-second interval.
+- Limitation: sandbox blocks jsDelivr. Headless tests routed the CDN request to an existing local three.js 0.186.1 build; the shipped import map remains exclusively pinned to jsDelivr 0.160.0.
+- Unverified: exact three.js 0.160.0 rendering, live CDN delivery, physical touch hardware and device frame rates. No substitute library ships with the page.
+- Deliverables: `lineup.html` and this report. Temporary QA files removed; existing project files preserved; no git commands run.
