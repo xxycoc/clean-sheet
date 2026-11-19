@@ -1,4 +1,3 @@
-import { realpathSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { mkdirSync, writeFileSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { join, resolve, relative, isAbsolute, extname } from 'node:path';
