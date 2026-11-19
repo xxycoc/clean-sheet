@@ -1,4 +1,4 @@
-import { sceneAt, STAFF, ZONES, COLORS, placeOverlay } from './state.js';
+import { sceneAt, STAFF, ZONES, COLORS, placeOverlay, eventDelay } from './state.js';
 import { createFloor } from './scene.js';
 
 const $ = id => document.getElementById(id);
@@ -69,11 +69,13 @@ function layout(info) {
   if (flatMode) return;
   const bounds = { w: $('stage').clientWidth, h: $('stage').clientHeight };
   const occupied = info.occupied;
+  // Keep the fixed dock above the goal even on short stages; long cards scroll.
+  $('card').style.maxHeight = `${Math.max(40, Math.min(260, info.dockHeight))}px`;
   for (const id of ['card', 'bubble']) {
     const el = $(id); if (el.hidden) continue;
     const r = flatMode ? { x: 12, y: bounds.h - (id === 'card' ? el.offsetHeight + 12 : $('card').offsetHeight + el.offsetHeight + 24), w: el.offsetWidth, h: el.offsetHeight } : placeOverlay(info.anchor, [el.offsetWidth, el.offsetHeight], bounds, occupied);
-    // Reserve a separate top-left slot when both overlays need docking.
-    if (r.docked && id === 'bubble' && !$('card').hidden && $('card').dataset.docked === 'true') r.y += $('card').offsetHeight + 12;
+    // Alerts have their own top-left dock, away from the decision panel.
+    if (r.docked && id === 'bubble') r.x = 12;
     el.style.left = `${r.x}px`; el.style.top = `${r.y}px`; el.dataset.docked = String(!!r.docked); occupied.push(r);
   }
 }
@@ -93,7 +95,7 @@ function refresh(animate = false) {
   const card = state.card; $('card').hidden = !card;
   if (card) { $('card').replaceChildren(); $('card').style.setProperty('--tone', tone(card.decision)); text('strong', card.decision === 'HOLD_FOR_APPROVAL' ? 'HELD FOR YOUR APPROVAL' : card.decision === 'ALLOW' ? '✓ ALLOW' : card.decision ?? 'WORK', $('card')); text('span', card.owner_message ?? 'Review action', $('card')).className = 'message'; text('small', `${card.rules?.join(' · ') || 'Event record'} → Inspect`, $('card')); }
   $('bubble').hidden = !state.alert; $('bubble').textContent = state.alert ?? '';
-  if (flatMode) flat(); else floor?.update(state, animate);
+  if (flatMode) { $('card').style.maxHeight = ''; flat(); } else floor?.update(state, animate);
   if (!$('drawer').hidden) inspect(selected);
   requestDraw();
 }
@@ -118,11 +120,11 @@ function schedule() {
   if (playing || (mode === 'live' && liveReady && index < events.length - 1)) timer = setTimeout(() => {
     if (index < events.length - 1) { index++; refresh(!motion.matches); schedule(); }
     else if (mode === 'sample' && playing && !motion.matches) { index = 0; refresh(); schedule(); } else stop();
-  }, mode === 'sample' && index === events.length - 1 ? 3000 : 1000 / Number($('speed').value));
+  }, mode === 'sample' && index === events.length - 1 ? 3000 : eventDelay(state.event, Number($('speed').value)));
 }
 function setMode(next) { mode = next; for (const name of ['live', 'replay', 'sample']) $(name).setAttribute('aria-pressed', String(name === next)); $('play').disabled = next === 'live'; }
 function disconnect() { stream?.close(); stream = null; clearTimeout(historyTimer); liveReady = false; }
-function sample() { disconnect(); stop(); setMode('sample'); events = structuredClone(globalThis.FLOOR_SAMPLE ?? []); index = motion.matches ? events.length - 1 : -1; $('speed').value = '1'; $('connection').textContent = `Sample · ${events.length} events from a real rogue run`; refresh(); if (!motion.matches) { playing = true; $('play').textContent = 'Pause'; $('play').setAttribute('aria-label', 'Pause replay'); schedule(); } }
+function sample() { disconnect(); stop(); setMode('sample'); events = structuredClone(globalThis.FLOOR_SAMPLE ?? []); index = motion.matches ? events.length - 1 : -1; $('speed').value = '2'; $('connection').textContent = `Sample · ${events.length} events from a real rogue run`; refresh(); if (!motion.matches) { playing = true; $('play').textContent = 'Pause'; $('play').setAttribute('aria-label', 'Pause replay'); schedule(); } }
 function replayMode() { disconnect(); stop(); setMode('replay'); $('connection').textContent = `Replay · ${events.length} loaded events`; refresh(); }
 function live() {
   if (!token || !server) { $('connection').textContent = 'Live needs ?server=<https URL>&token=<owner token>; Sample remains available.'; return; }

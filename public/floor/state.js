@@ -108,5 +108,47 @@ export function placeOverlay(anchor, size, bounds, occupied) {
     if (r.x < gap || r.y < gap || r.x + w > bounds.w - gap || r.y + h > bounds.h - gap) continue;
     if (!occupied.some(b => r.x < b.x + b.w + gap && r.x + w + gap > b.x && r.y < b.y + b.h + gap && r.y + h + gap > b.y)) return { ...r, docked: false };
   }
-  return { x: gap, y: gap, w, h, docked: true };
+  return { x: Math.max(gap, bounds.w - w - gap), y: gap, w, h, docked: true };
+}
+
+export function eventDelay(event, speed = 2) {
+  if (['keeper.decision', 'owner.decision'].includes(event?.type)) return 2500;
+  if (['directory.listed', 'task.ended'].includes(event?.type)) return 60;
+  return 1000 / speed;
+}
+
+// Resolve in stable cast order, including shared destinations and stationary staff.
+export function separateWalkers(points, desks) {
+  const spacing = 1.7, radius = .65;
+  for (let pass = 0; pass < 80; pass++) {
+    let correction = 0;
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      for (let j = 0; j < i; j++) {
+        const q = points[j], dx = p.x - q.x, dz = p.z - q.z;
+        const distance = Math.hypot(dx, dz);
+        if (distance >= spacing) continue;
+        const push = (spacing - distance) / 2;
+        // A shared position gets a deterministic sideways lane.
+        const nx = distance > .0001 ? dx / distance : 1, nz = distance > .0001 ? dz / distance : 0;
+        p.x += nx * push; p.z += nz * push; q.x -= nx * push; q.z -= nz * push;
+        correction = Math.max(correction, push);
+      }
+    }
+    for (const p of points) {
+      const clear = (x, z) => desks.every(d => Math.abs(x - d.x) >= .7 + radius - 1e-9 || Math.abs(z - d.z) >= .35 + radius - 1e-9);
+      if (clear(p.x, p.z)) continue;
+      // Test the union of desk footprints: clearing one desk must not enter its neighbour.
+      const xs = [p.x, ...desks.flatMap(d => [d.x - .7 - radius, d.x + .7 + radius])];
+      const zs = [p.z, ...desks.flatMap(d => [d.z - .35 - radius, d.z + .35 + radius])];
+      let best, distance = Infinity;
+      for (const x of xs) for (const z of zs) {
+        const delta = Math.hypot(x - p.x, z - p.z);
+        if (delta < distance && clear(x, z)) { best = { x, z }; distance = delta; }
+      }
+      Object.assign(p, best); correction = Math.max(correction, distance);
+    }
+    if (correction < .0001) break;
+  }
+  return points;
 }

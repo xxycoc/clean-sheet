@@ -1,4 +1,4 @@
-import { STAFF, ZONES, COLORS, home, placeOverlay } from './state.js';
+import { STAFF, ZONES, COLORS, home, placeOverlay, separateWalkers } from './state.js';
 import { characterFactory } from './characters.js';
 
 export async function createFloor(canvas, tags, leaders, inspect, changed) {
@@ -23,7 +23,9 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
   const box = (p, w, h, d, c, x = 0, y = 0, z = 0) => mesh(p, new T.BoxGeometry(w, h, d), mat(c), x, y, z);
   const cylinder = (p, r, h, c, x = 0, y = 0, z = 0) => mesh(p, new T.CylinderGeometry(r, r * .8, h, 10), mat(c), x, y, z);
   const sphere = (p, r, c, x = 0, y = 0, z = 0) => mesh(p, new T.IcosahedronGeometry(r, 1), mat(c), x, y, z);
+  const desks = [];
   function desk(x, z, mail = false) {
+    desks.push({ x, z });
     box(scene, 1.4, .12, .7, '#9eafb0', x, .85, z);
     for (const dx of [-.55, .55]) for (const dz of [-.25, .25]) box(scene, .07, .8, .07, '#486674', x + dx, .4, z + dz);
     if (mail) for (let i = 0; i < 3; i++) box(scene, .42, .04, .32, '#ebdfbd', x + .3, .95 + i * .05, z);
@@ -95,6 +97,15 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
     for (const r of state.rooms) if (r.level) { const m = mats.get(r.name); m.material.color.set(COLORS[r.level]); m.item.el.style.setProperty('--color', COLORS[r.level]); m.item.el.querySelector('small').textContent = r.level; }
   }
   const project = p => { const v = p.clone().project(camera); return { x: (v.x + 1) * width / 2, y: (1 - v.y) * height / 2 }; };
+  const goalBounds = new T.Box3(new T.Vector3(8.2, 0, -1.7), new T.Vector3(8.9, 3, 1.7));
+  function screenBounds(bounds) {
+    const points = [];
+    for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) points.push(project(new T.Vector3(x, y, z)));
+    const x = Math.min(...points.map(p => p.x)), y = Math.min(...points.map(p => p.y));
+    return { x, y, w: Math.max(...points.map(p => p.x)) - x, h: Math.max(...points.map(p => p.y)) - y };
+  }
+  // Precise bounds include deformed tentacles and the Keeper's current dive pose.
+  const objectBounds = object => screenBounds(new T.Box3().setFromObject(object, true));
   function draw(now) {
     if (!state) return { active: false, occupied: [], anchor: { x: width / 2, y: height / 2 } };
     const t = duration ? Math.min(1, (now - started) / duration) : 1, eased = t * t * (3 - 2 * t);
@@ -105,6 +116,8 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
       if (t < 1 && from[n].distanceTo(destination) > .1) m.root.position.y = Math.sin(t * Math.PI * 6) * .06;
       if (state.ball?.phase === 'flight' && n === state.ball.agent) m.g.rotation.z = -.2 * Math.sin(t * Math.PI);
     }
+    const separated = separateWalkers(STAFF.map(n => ({ x: people[n].root.position.x, z: people[n].root.position.z })), desks);
+    STAFF.forEach((n, i) => { people[n].root.position.x = separated[i].x; people[n].root.position.z = separated[i].z; });
     keeperPose = T.MathUtils.lerp(previousKeeperPose, state.keeper === 'save' ? 2 : state.keeper === 'hold' ? 5.4 : 0, eased);
     poseCharacter(keeper, keeperPose, true); keeper.props.ball.visible = false;
     for (const [name, m] of mats) {
@@ -115,6 +128,10 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
     villain.root.visible = state.villain || (previousVillain && t < 1); villain.root.position.x = -10 - (!state.villain ? eased * 2 : 0); poseCharacter(villain, 5.4, true);
     ball.visible = !!state.ball;
     if (state.ball) { const b = state.ball, dest = new T.Vector3(b.x, b.y, b.z); const origin = previousBall ?? new T.Vector3(4.4, .3, 0); ball.position.copy(origin).lerp(dest, eased); if (t < 1) ball.position.y += Math.sin(t * Math.PI) * .8; ball.rotation.z = -t * 5; }
+    scene.updateMatrixWorld(true);
+    const obstacles = [objectBounds(keeper.root), screenBounds(goalBounds)];
+    if (ball.visible) obstacles.push(objectBounds(ball));
+    if (state.activeAgent && people[state.activeAgent]) obstacles.push(objectBounds(people[state.activeAgent].root));
     const occupied = [];
     for (const l of [...labelItems].sort((a, b) => Number(a.type === 'agent') - Number(b.type === 'agent'))) {
       const visible = l !== villainTag || villain.root.visible; l.el.hidden = !visible; l.leader.style.display = visible ? '' : 'none'; if (!visible) continue;
@@ -136,7 +153,9 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
       l.leader.setAttribute('x1', p.x); l.leader.setAttribute('y1', p.y + 7); l.leader.setAttribute('x2', x + w / 2); l.leader.setAttribute('y2', y + h);
     }
     renderer.render(scene, camera);
-    return { active: t < 1, occupied, anchor: project(ball.visible ? ball.position : new T.Vector3(7, 1, 0)) };
+    // The dock has a fixed top-right origin and ends above protected scene objects.
+    const dockHeight = Math.min(height - 24, ...obstacles.filter(b => b.x + b.w > width - 414).map(b => b.y - 24));
+    return { active: t < 1, occupied: [...occupied, ...obstacles], dockHeight, anchor: project(ball.visible ? ball.position : new T.Vector3(7, 1, 0)) };
   }
   const ray = new T.Raycaster();
   canvas.addEventListener('click', event => {

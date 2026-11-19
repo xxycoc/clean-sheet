@@ -1,0 +1,13 @@
+# FLOOR-CARDS result
+- Card placement now avoids projected 3D bounds of the Keeper, goal mouth, ball and acting agent on every frame.
+- Obstructed cards dock top-right; their scrollable height stays above protected objects in that panel.
+- Characters maintain 1.7-unit spacing and clear expanded desk footprints, including adjacent desks and shared destinations.
+- Sample defaults to 2x; directory listings and task ends use 60 ms; keeper and owner decisions hold for 2.5 real seconds at every speed.
+- Rebuilt `public/floor/runtime.js` with `node scripts/floor-build.js`; three.js import map remains pinned to 0.160.0.
+- `node --test tests/*.test.js public/floor/cards.test.js`: 113/113 passed, including 4,998 intermediate sample frames.
+- An initial HTTP test timed out; its isolated rerun and the complete final suite passed.
+- `node scripts/score.js`: Kit 15/15, Extra 6/6, Normal 42/42; zero false alarms.
+- Served entry in headless Chrome: 2x default, keeper ALLOW/HOLD/BLOCK at 2.51–2.52 s, synthetic owner release at 2.52 s, bookkeeping at 80–82 ms.
+- Headless 320px fallback and reduced-motion checks passed with no browser runtime errors.
+- Unverified: rendered 3D card clearance and visual walking quality; CDN loading failed with `net::ERR_NETWORK_ACCESS_DENIED`. No visual success is claimed.
+- Changes are confined to `public/floor/` and this requested report. No git commands were run.

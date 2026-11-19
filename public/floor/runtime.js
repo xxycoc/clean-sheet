@@ -111,7 +111,49 @@ function placeOverlay(anchor, size, bounds, occupied) {
     if (r.x < gap || r.y < gap || r.x + w > bounds.w - gap || r.y + h > bounds.h - gap) continue;
     if (!occupied.some(b => r.x < b.x + b.w + gap && r.x + w + gap > b.x && r.y < b.y + b.h + gap && r.y + h + gap > b.y)) return { ...r, docked: false };
   }
-  return { x: gap, y: gap, w, h, docked: true };
+  return { x: Math.max(gap, bounds.w - w - gap), y: gap, w, h, docked: true };
+}
+
+function eventDelay(event, speed = 2) {
+  if (['keeper.decision', 'owner.decision'].includes(event?.type)) return 2500;
+  if (['directory.listed', 'task.ended'].includes(event?.type)) return 60;
+  return 1000 / speed;
+}
+
+// Resolve in stable cast order, including shared destinations and stationary staff.
+function separateWalkers(points, desks) {
+  const spacing = 1.7, radius = .65;
+  for (let pass = 0; pass < 80; pass++) {
+    let correction = 0;
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      for (let j = 0; j < i; j++) {
+        const q = points[j], dx = p.x - q.x, dz = p.z - q.z;
+        const distance = Math.hypot(dx, dz);
+        if (distance >= spacing) continue;
+        const push = (spacing - distance) / 2;
+        // A shared position gets a deterministic sideways lane.
+        const nx = distance > .0001 ? dx / distance : 1, nz = distance > .0001 ? dz / distance : 0;
+        p.x += nx * push; p.z += nz * push; q.x -= nx * push; q.z -= nz * push;
+        correction = Math.max(correction, push);
+      }
+    }
+    for (const p of points) {
+      const clear = (x, z) => desks.every(d => Math.abs(x - d.x) >= .7 + radius - 1e-9 || Math.abs(z - d.z) >= .35 + radius - 1e-9);
+      if (clear(p.x, p.z)) continue;
+      // Test the union of desk footprints: clearing one desk must not enter its neighbour.
+      const xs = [p.x, ...desks.flatMap(d => [d.x - .7 - radius, d.x + .7 + radius])];
+      const zs = [p.z, ...desks.flatMap(d => [d.z - .35 - radius, d.z + .35 + radius])];
+      let best, distance = Infinity;
+      for (const x of xs) for (const z of zs) {
+        const delta = Math.hypot(x - p.x, z - p.z);
+        if (delta < distance && clear(x, z)) { best = { x, z }; distance = delta; }
+      }
+      Object.assign(p, best); correction = Math.max(correction, distance);
+    }
+    if (correction < .0001) break;
+  }
+  return points;
 }
 
 function characterFactory(T) {
@@ -191,7 +233,9 @@ async function createFloor(canvas, tags, leaders, inspect, changed) {
   const box = (p, w, h, d, c, x = 0, y = 0, z = 0) => mesh(p, new T.BoxGeometry(w, h, d), mat(c), x, y, z);
   const cylinder = (p, r, h, c, x = 0, y = 0, z = 0) => mesh(p, new T.CylinderGeometry(r, r * .8, h, 10), mat(c), x, y, z);
   const sphere = (p, r, c, x = 0, y = 0, z = 0) => mesh(p, new T.IcosahedronGeometry(r, 1), mat(c), x, y, z);
+  const desks = [];
   function desk(x, z, mail = false) {
+    desks.push({ x, z });
     box(scene, 1.4, .12, .7, '#9eafb0', x, .85, z);
     for (const dx of [-.55, .55]) for (const dz of [-.25, .25]) box(scene, .07, .8, .07, '#486674', x + dx, .4, z + dz);
     if (mail) for (let i = 0; i < 3; i++) box(scene, .42, .04, .32, '#ebdfbd', x + .3, .95 + i * .05, z);
@@ -263,6 +307,15 @@ async function createFloor(canvas, tags, leaders, inspect, changed) {
     for (const r of state.rooms) if (r.level) { const m = mats.get(r.name); m.material.color.set(COLORS[r.level]); m.item.el.style.setProperty('--color', COLORS[r.level]); m.item.el.querySelector('small').textContent = r.level; }
   }
   const project = p => { const v = p.clone().project(camera); return { x: (v.x + 1) * width / 2, y: (1 - v.y) * height / 2 }; };
+  const goalBounds = new T.Box3(new T.Vector3(8.2, 0, -1.7), new T.Vector3(8.9, 3, 1.7));
+  function screenBounds(bounds) {
+    const points = [];
+    for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) points.push(project(new T.Vector3(x, y, z)));
+    const x = Math.min(...points.map(p => p.x)), y = Math.min(...points.map(p => p.y));
+    return { x, y, w: Math.max(...points.map(p => p.x)) - x, h: Math.max(...points.map(p => p.y)) - y };
+  }
+  // Precise bounds include deformed tentacles and the Keeper's current dive pose.
+  const objectBounds = object => screenBounds(new T.Box3().setFromObject(object, true));
   function draw(now) {
     if (!state) return { active: false, occupied: [], anchor: { x: width / 2, y: height / 2 } };
     const t = duration ? Math.min(1, (now - started) / duration) : 1, eased = t * t * (3 - 2 * t);
@@ -273,6 +326,8 @@ async function createFloor(canvas, tags, leaders, inspect, changed) {
       if (t < 1 && from[n].distanceTo(destination) > .1) m.root.position.y = Math.sin(t * Math.PI * 6) * .06;
       if (state.ball?.phase === 'flight' && n === state.ball.agent) m.g.rotation.z = -.2 * Math.sin(t * Math.PI);
     }
+    const separated = separateWalkers(STAFF.map(n => ({ x: people[n].root.position.x, z: people[n].root.position.z })), desks);
+    STAFF.forEach((n, i) => { people[n].root.position.x = separated[i].x; people[n].root.position.z = separated[i].z; });
     keeperPose = T.MathUtils.lerp(previousKeeperPose, state.keeper === 'save' ? 2 : state.keeper === 'hold' ? 5.4 : 0, eased);
     poseCharacter(keeper, keeperPose, true); keeper.props.ball.visible = false;
     for (const [name, m] of mats) {
@@ -283,6 +338,10 @@ async function createFloor(canvas, tags, leaders, inspect, changed) {
     villain.root.visible = state.villain || (previousVillain && t < 1); villain.root.position.x = -10 - (!state.villain ? eased * 2 : 0); poseCharacter(villain, 5.4, true);
     ball.visible = !!state.ball;
     if (state.ball) { const b = state.ball, dest = new T.Vector3(b.x, b.y, b.z); const origin = previousBall ?? new T.Vector3(4.4, .3, 0); ball.position.copy(origin).lerp(dest, eased); if (t < 1) ball.position.y += Math.sin(t * Math.PI) * .8; ball.rotation.z = -t * 5; }
+    scene.updateMatrixWorld(true);
+    const obstacles = [objectBounds(keeper.root), screenBounds(goalBounds)];
+    if (ball.visible) obstacles.push(objectBounds(ball));
+    if (state.activeAgent && people[state.activeAgent]) obstacles.push(objectBounds(people[state.activeAgent].root));
     const occupied = [];
     for (const l of [...labelItems].sort((a, b) => Number(a.type === 'agent') - Number(b.type === 'agent'))) {
       const visible = l !== villainTag || villain.root.visible; l.el.hidden = !visible; l.leader.style.display = visible ? '' : 'none'; if (!visible) continue;
@@ -304,7 +363,9 @@ async function createFloor(canvas, tags, leaders, inspect, changed) {
       l.leader.setAttribute('x1', p.x); l.leader.setAttribute('y1', p.y + 7); l.leader.setAttribute('x2', x + w / 2); l.leader.setAttribute('y2', y + h);
     }
     renderer.render(scene, camera);
-    return { active: t < 1, occupied, anchor: project(ball.visible ? ball.position : new T.Vector3(7, 1, 0)) };
+    // The dock has a fixed top-right origin and ends above protected scene objects.
+    const dockHeight = Math.min(height - 24, ...obstacles.filter(b => b.x + b.w > width - 414).map(b => b.y - 24));
+    return { active: t < 1, occupied: [...occupied, ...obstacles], dockHeight, anchor: project(ball.visible ? ball.position : new T.Vector3(7, 1, 0)) };
   }
   const ray = new T.Raycaster();
   canvas.addEventListener('click', event => {
@@ -389,11 +450,13 @@ function layout(info) {
   if (flatMode) return;
   const bounds = { w: $('stage').clientWidth, h: $('stage').clientHeight };
   const occupied = info.occupied;
+  // Keep the fixed dock above the goal even on short stages; long cards scroll.
+  $('card').style.maxHeight = `${Math.max(40, Math.min(260, info.dockHeight))}px`;
   for (const id of ['card', 'bubble']) {
     const el = $(id); if (el.hidden) continue;
     const r = flatMode ? { x: 12, y: bounds.h - (id === 'card' ? el.offsetHeight + 12 : $('card').offsetHeight + el.offsetHeight + 24), w: el.offsetWidth, h: el.offsetHeight } : placeOverlay(info.anchor, [el.offsetWidth, el.offsetHeight], bounds, occupied);
-    // Reserve a separate top-left slot when both overlays need docking.
-    if (r.docked && id === 'bubble' && !$('card').hidden && $('card').dataset.docked === 'true') r.y += $('card').offsetHeight + 12;
+    // Alerts have their own top-left dock, away from the decision panel.
+    if (r.docked && id === 'bubble') r.x = 12;
     el.style.left = `${r.x}px`; el.style.top = `${r.y}px`; el.dataset.docked = String(!!r.docked); occupied.push(r);
   }
 }
@@ -413,7 +476,7 @@ function refresh(animate = false) {
   const card = state.card; $('card').hidden = !card;
   if (card) { $('card').replaceChildren(); $('card').style.setProperty('--tone', tone(card.decision)); text('strong', card.decision === 'HOLD_FOR_APPROVAL' ? 'HELD FOR YOUR APPROVAL' : card.decision === 'ALLOW' ? '✓ ALLOW' : card.decision ?? 'WORK', $('card')); text('span', card.owner_message ?? 'Review action', $('card')).className = 'message'; text('small', `${card.rules?.join(' · ') || 'Event record'} → Inspect`, $('card')); }
   $('bubble').hidden = !state.alert; $('bubble').textContent = state.alert ?? '';
-  if (flatMode) flat(); else floor?.update(state, animate);
+  if (flatMode) { $('card').style.maxHeight = ''; flat(); } else floor?.update(state, animate);
   if (!$('drawer').hidden) inspect(selected);
   requestDraw();
 }
@@ -438,11 +501,11 @@ function schedule() {
   if (playing || (mode === 'live' && liveReady && index < events.length - 1)) timer = setTimeout(() => {
     if (index < events.length - 1) { index++; refresh(!motion.matches); schedule(); }
     else if (mode === 'sample' && playing && !motion.matches) { index = 0; refresh(); schedule(); } else stop();
-  }, mode === 'sample' && index === events.length - 1 ? 3000 : 1000 / Number($('speed').value));
+  }, mode === 'sample' && index === events.length - 1 ? 3000 : eventDelay(state.event, Number($('speed').value)));
 }
 function setMode(next) { mode = next; for (const name of ['live', 'replay', 'sample']) $(name).setAttribute('aria-pressed', String(name === next)); $('play').disabled = next === 'live'; }
 function disconnect() { stream?.close(); stream = null; clearTimeout(historyTimer); liveReady = false; }
-function sample() { disconnect(); stop(); setMode('sample'); events = structuredClone(globalThis.FLOOR_SAMPLE ?? []); index = motion.matches ? events.length - 1 : -1; $('speed').value = '1'; $('connection').textContent = `Sample · ${events.length} events from a real rogue run`; refresh(); if (!motion.matches) { playing = true; $('play').textContent = 'Pause'; $('play').setAttribute('aria-label', 'Pause replay'); schedule(); } }
+function sample() { disconnect(); stop(); setMode('sample'); events = structuredClone(globalThis.FLOOR_SAMPLE ?? []); index = motion.matches ? events.length - 1 : -1; $('speed').value = '2'; $('connection').textContent = `Sample · ${events.length} events from a real rogue run`; refresh(); if (!motion.matches) { playing = true; $('play').textContent = 'Pause'; $('play').setAttribute('aria-label', 'Pause replay'); schedule(); } }
 function replayMode() { disconnect(); stop(); setMode('replay'); $('connection').textContent = `Replay · ${events.length} loaded events`; refresh(); }
 function live() {
   if (!token || !server) { $('connection').textContent = 'Live needs ?server=<https URL>&token=<owner token>; Sample remains available.'; return; }
