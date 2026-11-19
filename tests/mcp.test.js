@@ -214,9 +214,13 @@ test('owner auth covers every console method and sanitizes denied snapshots and 
   const held = channel.call('send_email', { to: 'buyer@newco.example', body: 'Thanks.' });
   const id = held.structuredContent.id;
   for (const path of ['/api/queue', `/api/queue/${id}/release`, `/api/queue/${id}/reject`, '/api/log', '/api/log/verify', '/api/events', '/api/briefing', '/api/scorecard']) {
-    for (const method of ['GET', 'POST', 'DELETE', 'OPTIONS']) {
+    for (const method of ['GET', 'POST', 'DELETE']) {
       assert.equal((await fetch(`${base}${path}`, { method })).status, 401, `${method} ${path}`);
     }
+    // A CORS preflight carries no credentials and returns no data, so it is answered without a token.
+    const preflight = await fetch(`${base}${path}`, { method: 'OPTIONS' });
+    assert.equal(preflight.status, 204, `OPTIONS ${path}`);
+    assert.equal(await preflight.text(), '');
     assert.equal((await fetch(`${base}${path}?token=wrong`)).status, 401);
   }
   assert.equal(channel.queue.get(id).status, 'pending');

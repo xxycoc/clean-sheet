@@ -47,6 +47,8 @@ export function createHttpServer({ channel = new Channel(), replayRows = null, o
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, MCP-Session-Id, MCP-Protocol-Version, Last-Event-ID');
       res.setHeader('Access-Control-Expose-Headers', 'MCP-Session-Id');
+      // Browsers send CORS preflights without credentials; answer them before any auth check.
+      if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Max-Age': '600' }); res.end(); return; }
       const url = new URL(req.url, 'http://localhost');
       // Validate the raw path before URL normalization can remove dot segments.
       const rawPath = decodeURIComponent(req.url.split('?')[0]);
