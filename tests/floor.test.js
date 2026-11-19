@@ -19,7 +19,7 @@ test('scene derives locations, alerts, decisions, queue, owner release and home 
   assert.equal(sceneAt(sequence, -1).agents.Sales.x, home('Sales').x);
   assert.equal(sceneAt(sequence, 0).agents.Sales.x, 1);
   assert.match(sceneAt(sequence, 1).alert, /^Out of scope: clients/);
-  assert.equal(sceneAt(sequence, 1).agents.Sales.x, -5.2);
+  assert.equal(sceneAt(sequence, 1).agents.Sales.x, ZONES.find(z => z.name === 'Clients').x + .5);
   assert.equal(sceneAt(sequence, 2).ball.phase, 'flight');
   assert.equal(sceneAt(sequence, 4).score.held, 1);
   assert.equal(sceneAt(sequence, 5).score.held, 0);

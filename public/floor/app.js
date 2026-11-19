@@ -3,7 +3,10 @@ import { createFloor } from './scene.js';
 
 const $ = id => document.getElementById(id);
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
-const token = new URLSearchParams(location.search).get('token');
+const params = new URLSearchParams(location.search);
+const token = params.get('token');
+let server;
+try { const url = new URL(params.get('server')); if (url.protocol === 'https:') server = url; } catch {}
 const types = ['task.started', 'task.ended', 'file.read', 'directory.listed', 'action.proposed', 'keeper.decision', 'approval.queued', 'owner.decision', 'action.executed', 'action.failed', 'notification.queued', 'briefing.ready'];
 let events = [], index = -1, state = sceneAt([], -1), mode = 'sample', playing = false, timer, stream, seen = new Set(), liveReady = false, historyTimer;
 let floor, loading = false, failed = '', frame = 0, flatMode = true, lastFocus, selected;
@@ -113,17 +116,20 @@ function stop() { playing = false; clearTimeout(timer); timer = null; $('play').
 function schedule() {
   clearTimeout(timer); timer = null; if (document.hidden) return;
   if (playing || (mode === 'live' && liveReady && index < events.length - 1)) timer = setTimeout(() => {
-    if (index < events.length - 1) { index++; refresh(!motion.matches); schedule(); } else stop();
-  }, 1000 / Number($('speed').value));
+    if (index < events.length - 1) { index++; refresh(!motion.matches); schedule(); }
+    else if (mode === 'sample' && playing && !motion.matches) { index = 0; refresh(); schedule(); } else stop();
+  }, mode === 'sample' && index === events.length - 1 ? 3000 : 1000 / Number($('speed').value));
 }
 function setMode(next) { mode = next; for (const name of ['live', 'replay', 'sample']) $(name).setAttribute('aria-pressed', String(name === next)); $('play').disabled = next === 'live'; }
 function disconnect() { stream?.close(); stream = null; clearTimeout(historyTimer); liveReady = false; }
-function sample() { disconnect(); stop(); setMode('sample'); events = structuredClone(globalThis.FLOOR_SAMPLE ?? []); index = -1; $('connection').textContent = `Sample · ${events.length} events from a real rogue run`; refresh(); }
+function sample() { disconnect(); stop(); setMode('sample'); events = structuredClone(globalThis.FLOOR_SAMPLE ?? []); index = motion.matches ? events.length - 1 : -1; $('speed').value = '1'; $('connection').textContent = `Sample · ${events.length} events from a real rogue run`; refresh(); if (!motion.matches) { playing = true; $('play').textContent = 'Pause'; $('play').setAttribute('aria-label', 'Pause replay'); schedule(); } }
 function replayMode() { disconnect(); stop(); setMode('replay'); $('connection').textContent = `Replay · ${events.length} loaded events`; refresh(); }
 function live() {
-  if (!token || location.protocol === 'file:') { $('connection').textContent = 'Live needs /floor/?token=<owner token> on the MCP server.'; return; }
+  if (!token || !server) { $('connection').textContent = 'Live needs ?server=<https URL>&token=<owner token>; Sample remains available.'; return; }
   disconnect(); stop(); setMode('live'); events = []; index = -1; seen = new Set(); refresh(); $('connection').textContent = 'Connecting to owner event stream…';
-  stream = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
+  const endpoint = new URL('api/events', server.href.replace(/\/?$/, '/'));
+  endpoint.searchParams.set('token', token);
+  stream = new EventSource(endpoint.href);
   stream.onopen = () => { $('connection').textContent = 'Live · Connected'; clearTimeout(historyTimer); historyTimer = setTimeout(() => { if (!liveReady) { liveReady = true; index = events.length - 1; refresh(); } }, 100); };
   stream.onerror = () => { $('connection').textContent = 'Live disconnected · Retrying; check the server and owner token.'; };
   for (const type of types) stream.addEventListener(type, message => {
@@ -144,7 +150,7 @@ $('log').onchange = async () => {
   catch (e) { $('connection').textContent = `Could not load log: ${e.message}`; }
   $('log').value = '';
 };
-new ResizeObserver(chooseView).observe($('stage')); motion.addEventListener('change', chooseView);
+new ResizeObserver(chooseView).observe($('stage')); motion.addEventListener('change', () => { if (motion.matches) { stop(); if (mode === 'sample') index = events.length - 1; } chooseView(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(frame); frame = 0; clearTimeout(timer); timer = null; } else { requestDraw(); schedule(); } });
 window.addEventListener('pagehide', disconnect);
-sample(); chooseView(); if (token) live();
+sample(); chooseView(); if (token && server) live();

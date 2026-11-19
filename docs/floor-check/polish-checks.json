@@ -1,0 +1,23 @@
+{
+  "checks": [
+    {
+      "width": 1920,
+      "threeD": false,
+      "fallback": "Pinned three.js download unavailable · 2D still-frame map"
+    },
+    {
+      "width": 1280,
+      "threeD": false,
+      "fallback": "Pinned three.js download unavailable · 2D still-frame map"
+    },
+    "Autoplay at 1x, pause, final 3-second hold and loop passed",
+    "Reduced motion opens final state without autoplay",
+    "GitHub Pages /clean-sheet/ redirect and relative assets work",
+    "Explicit HTTPS server and token routed correctly (EventSource mock)"
+  ],
+  "errors": [],
+  "networkErrors": [
+    "net::ERR_NETWORK_ACCESS_DENIED",
+    "net::ERR_NETWORK_ACCESS_DENIED"
+  ]
+}

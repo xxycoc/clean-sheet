@@ -6,17 +6,17 @@ const LEVELS = ['public', 'internal', 'client-confidential', 'regulated'];
 const COLORS = { public: '#58ce93', internal: '#72b7ef', 'client-confidential': '#f1ba64', regulated: '#f08091' };
 // Highest labels in the shipped workspace, including content-detected labels.
 const ZONES = [
-  { name: 'Inbox', x: -10, z: 0, w: 3.4, d: 10, level: 'regulated' },
-  { name: 'Clients', x: -5.7, z: -3.5, w: 4.2, d: 2.7, level: 'client-confidential' },
-  { name: 'Finance', x: -5.7, z: 0, w: 4.2, d: 2.7, level: 'regulated' },
-  { name: 'Notes', x: -5.7, z: 3.5, w: 4.2, d: 2.7, level: 'client-confidential' },
-  { name: 'Marketing', x: -1, z: -3.5, w: 4.2, d: 2.7, level: 'public' },
-  { name: 'Admin', x: -1, z: 3.5, w: 4.2, d: 2.7, level: 'regulated' },
-  { name: 'Staff', x: 3, z: 0, w: 3.4, d: 10 },
+  { name: 'Inbox', x: -11, z: 0, w: 3.4, d: 10, level: 'regulated' },
+  { name: 'Clients', x: -7.3, z: -3.5, w: 2.9, d: 2.7, level: 'client-confidential' },
+  { name: 'Finance', x: -7.3, z: 0, w: 2.9, d: 2.7, level: 'regulated' },
+  { name: 'Notes', x: -7.3, z: 3.5, w: 2.9, d: 2.7, level: 'client-confidential' },
+  { name: 'Marketing', x: -3.9, z: -3.5, w: 2.9, d: 2.7, level: 'public' },
+  { name: 'Admin', x: -3.9, z: 3.5, w: 2.9, d: 2.7, level: 'regulated' },
+  { name: 'Staff', x: 1.6, z: 0, w: 7.2, d: 10 },
   { name: 'Keeper', x: 7, z: 0, w: 3.5, d: 10 },
   { name: 'Outside', x: 11, z: 0, w: 3.4, d: 10 },
 ];
-const home = name => ({ x: 3, z: -4 + STAFF.indexOf(name) * 2 });
+const home = name => ({ x: [-.9, 1.6, 4.1, .3, 3.1][STAFF.indexOf(name)], z: STAFF.indexOf(name) < 3 ? -2.4 : 3.1 });
 const roomFor = file => ZONES.find(z => z.name.toLowerCase() === String(file ?? '').split('/')[0].toLowerCase());
 const suspicious = e => e.trust === 'untrusted' || e.observed_file?.header?.trust === 'untrusted' ||
   (String(e.file ?? '').startsWith('inbox/') && /lookalike/i.test(e.file));
@@ -215,12 +215,17 @@ async function createFloor(canvas, tags, leaders, inspect, changed) {
     const material = new T.MeshStandardMaterial({ color: c, transparent: true, opacity: .12, roughness: .9 });
     mesh(scene, new T.BoxGeometry(z.w, .025, z.d), material, z.x, -.04, z.z);
     for (const side of [-1, 1]) { box(scene, z.w, .025, .035, c, z.x, -.01, z.z + side * z.d / 2); box(scene, .035, .025, z.d, c, z.x + side * z.w / 2, -.01, z.z); }
-    const item = label(z.name, () => new T.Vector3(z.x, .1, z.z - z.d / 2 + .15), z.level ?? (z.name === 'Staff' ? 'AI staff' : z.name === 'Keeper' ? 'Rules as code' : 'Outbox · Uploads · Supplier'));
+    const item = label(z.name, () => new T.Vector3(z.x, .1, z.z - z.d / 2 - .2), z.level ?? (z.name === 'Staff' ? 'AI staff' : z.name === 'Keeper' ? 'Rules as code' : 'Outbox · Uploads · Supplier'));
     item.el.style.setProperty('--color', c); mats.set(z.name, { material, item });
-    if (z.level && z.name !== 'Inbox') cabinet(z.x - 1.45, z.z - .25, c);
+    if (z.level && z.name !== 'Inbox') {
+      cabinet(z.x - .95, z.z - .25, c);
+      desk(z.x + .55, z.z + .35, true);
+      cylinder(scene, .13, .3, '#e0b49a', z.x + 1, 1.1, z.z + .35);
+      sphere(scene, .2, '#76b895', z.x + 1, 1.4, z.z + .35);
+    }
   }
-  STAFF.forEach((n, i) => { const p = home(n); desk(p.x + .4, p.z - .5); chair(p.x + .4, p.z + .35); });
-  desk(-10, 1, true); cabinet(-11, 3.3, '#83b8d0'); plant(-10, -3.8); plant(-1, 0); plant(11, 3.6);
+  STAFF.forEach((n, i) => { const p = home(n); desk(p.x, p.z - .85); chair(p.x, p.z + .35); });
+  desk(-10, 1, true); cabinet(-11, 3.3, '#83b8d0'); plant(-10, -3.8); plant(-3.9, 0); plant(11, 3.6);
   // Window, wall clock, goal net and outside door are all primitives.
   box(scene, 2.4, 2.5, .13, '#365963', -10, 1.25, -1.6);
   box(scene, 2.1, 1.65, .15, '#88bbc4', -10, 1.55, -1.5);
@@ -248,7 +253,7 @@ async function createFloor(canvas, tags, leaders, inspect, changed) {
     for (const x of [-13.4, 13.4]) for (const y of [0, 3.4]) for (const z of [-5.9, 5.9]) points.push(new T.Vector3(x, y, z).applyMatrix4(camera.matrixWorldInverse));
     const minX = Math.min(...points.map(p => p.x)), maxX = Math.max(...points.map(p => p.x));
     const minY = Math.min(...points.map(p => p.y)), maxY = Math.max(...points.map(p => p.y));
-    const aspect = width / height, halfH = Math.max((maxY - minY) / 2, (maxX - minX) / aspect / 2) * 1.06;
+    const aspect = width / height, halfH = Math.max((maxY - minY) / 2, (maxX - minX) / aspect / 2) * 1.015;
     const cx = (maxX + minX) / 2, cy = (maxY + minY) / 2;
     camera.left = cx - halfH * aspect; camera.right = cx + halfH * aspect; camera.top = cy + halfH; camera.bottom = cy - halfH; camera.updateProjectionMatrix();
   }
@@ -279,12 +284,22 @@ async function createFloor(canvas, tags, leaders, inspect, changed) {
     ball.visible = !!state.ball;
     if (state.ball) { const b = state.ball, dest = new T.Vector3(b.x, b.y, b.z); const origin = previousBall ?? new T.Vector3(4.4, .3, 0); ball.position.copy(origin).lerp(dest, eased); if (t < 1) ball.position.y += Math.sin(t * Math.PI) * .8; ball.rotation.z = -t * 5; }
     const occupied = [];
-    for (const l of [...labelItems].sort((a, b) => Number(b.type === 'agent') - Number(a.type === 'agent'))) {
+    for (const l of [...labelItems].sort((a, b) => Number(a.type === 'agent') - Number(b.type === 'agent'))) {
       const visible = l !== villainTag || villain.root.visible; l.el.hidden = !visible; l.leader.style.display = visible ? '' : 'none'; if (!visible) continue;
       l.el.classList.toggle('inactive', l.type === 'agent' && l.name !== state.activeAgent && l.name !== 'Keeper');
       const p = project(l.position()), w = l.el.offsetWidth, h = l.el.offsetHeight;
       let x = Math.max(5, Math.min(width - w - 5, p.x - w / 2)), y = Math.max(5, Math.min(height - h - 5, p.y - h));
-      for (let pass = 0; pass < labelItems.length; pass++) { const hit = occupied.find(b => x < b.x + b.w + 4 && x + w + 4 > b.x && y < b.y + b.h + 4 && y + h + 4 > b.y); if (!hit) break; y = Math.max(4, hit.y - h - 5); }
+      const clear = (xx, yy) => xx >= 4 && yy >= 4 && xx + w <= width - 4 && yy + h <= height - 4 && !occupied.some(b => xx < b.x + b.w + 5 && xx + w + 5 > b.x && yy < b.y + b.h + 5 && yy + h + 5 > b.y);
+      if (!clear(x, y)) {
+        const offset = placeOverlay(p, [w, h], { w: width, h: height }, occupied);
+        if (clear(offset.x, offset.y)) { x = offset.x; y = offset.y; }
+        else {
+          let found = false;
+          for (let yy = 5; yy < height - h && !found; yy += h + 6) for (let xx = 5; xx < width - w; xx += 12) {
+            if (clear(xx, yy)) { x = xx; y = yy; found = true; break; }
+          }
+        }
+      }
       l.el.style.left = `${x}px`; l.el.style.top = `${y}px`; occupied.push({ x, y, w, h });
       l.leader.setAttribute('x1', p.x); l.leader.setAttribute('y1', p.y + 7); l.leader.setAttribute('x2', x + w / 2); l.leader.setAttribute('y2', y + h);
     }
@@ -308,7 +323,10 @@ async function createFloor(canvas, tags, leaders, inspect, changed) {
 
 const $ = id => document.getElementById(id);
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
-const token = new URLSearchParams(location.search).get('token');
+const params = new URLSearchParams(location.search);
+const token = params.get('token');
+let server;
+try { const url = new URL(params.get('server')); if (url.protocol === 'https:') server = url; } catch {}
 const types = ['task.started', 'task.ended', 'file.read', 'directory.listed', 'action.proposed', 'keeper.decision', 'approval.queued', 'owner.decision', 'action.executed', 'action.failed', 'notification.queued', 'briefing.ready'];
 let events = [], index = -1, state = sceneAt([], -1), mode = 'sample', playing = false, timer, stream, seen = new Set(), liveReady = false, historyTimer;
 let floor, loading = false, failed = '', frame = 0, flatMode = true, lastFocus, selected;
@@ -418,17 +436,20 @@ function stop() { playing = false; clearTimeout(timer); timer = null; $('play').
 function schedule() {
   clearTimeout(timer); timer = null; if (document.hidden) return;
   if (playing || (mode === 'live' && liveReady && index < events.length - 1)) timer = setTimeout(() => {
-    if (index < events.length - 1) { index++; refresh(!motion.matches); schedule(); } else stop();
-  }, 1000 / Number($('speed').value));
+    if (index < events.length - 1) { index++; refresh(!motion.matches); schedule(); }
+    else if (mode === 'sample' && playing && !motion.matches) { index = 0; refresh(); schedule(); } else stop();
+  }, mode === 'sample' && index === events.length - 1 ? 3000 : 1000 / Number($('speed').value));
 }
 function setMode(next) { mode = next; for (const name of ['live', 'replay', 'sample']) $(name).setAttribute('aria-pressed', String(name === next)); $('play').disabled = next === 'live'; }
 function disconnect() { stream?.close(); stream = null; clearTimeout(historyTimer); liveReady = false; }
-function sample() { disconnect(); stop(); setMode('sample'); events = structuredClone(globalThis.FLOOR_SAMPLE ?? []); index = -1; $('connection').textContent = `Sample · ${events.length} events from a real rogue run`; refresh(); }
+function sample() { disconnect(); stop(); setMode('sample'); events = structuredClone(globalThis.FLOOR_SAMPLE ?? []); index = motion.matches ? events.length - 1 : -1; $('speed').value = '1'; $('connection').textContent = `Sample · ${events.length} events from a real rogue run`; refresh(); if (!motion.matches) { playing = true; $('play').textContent = 'Pause'; $('play').setAttribute('aria-label', 'Pause replay'); schedule(); } }
 function replayMode() { disconnect(); stop(); setMode('replay'); $('connection').textContent = `Replay · ${events.length} loaded events`; refresh(); }
 function live() {
-  if (!token || location.protocol === 'file:') { $('connection').textContent = 'Live needs /floor/?token=<owner token> on the MCP server.'; return; }
+  if (!token || !server) { $('connection').textContent = 'Live needs ?server=<https URL>&token=<owner token>; Sample remains available.'; return; }
   disconnect(); stop(); setMode('live'); events = []; index = -1; seen = new Set(); refresh(); $('connection').textContent = 'Connecting to owner event stream…';
-  stream = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
+  const endpoint = new URL('api/events', server.href.replace(/\/?$/, '/'));
+  endpoint.searchParams.set('token', token);
+  stream = new EventSource(endpoint.href);
   stream.onopen = () => { $('connection').textContent = 'Live · Connected'; clearTimeout(historyTimer); historyTimer = setTimeout(() => { if (!liveReady) { liveReady = true; index = events.length - 1; refresh(); } }, 100); };
   stream.onerror = () => { $('connection').textContent = 'Live disconnected · Retrying; check the server and owner token.'; };
   for (const type of types) stream.addEventListener(type, message => {
@@ -449,9 +470,9 @@ $('log').onchange = async () => {
   catch (e) { $('connection').textContent = `Could not load log: ${e.message}`; }
   $('log').value = '';
 };
-new ResizeObserver(chooseView).observe($('stage')); motion.addEventListener('change', chooseView);
+new ResizeObserver(chooseView).observe($('stage')); motion.addEventListener('change', () => { if (motion.matches) { stop(); if (mode === 'sample') index = events.length - 1; } chooseView(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(frame); frame = 0; clearTimeout(timer); timer = null; } else { requestDraw(); schedule(); } });
 window.addEventListener('pagehide', disconnect);
-sample(); chooseView(); if (token) live();
+sample(); chooseView(); if (token && server) live();
 
 })();

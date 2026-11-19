@@ -1,4 +1,4 @@
-import { STAFF, ZONES, COLORS, home } from './state.js';
+import { STAFF, ZONES, COLORS, home, placeOverlay } from './state.js';
 import { characterFactory } from './characters.js';
 
 export async function createFloor(canvas, tags, leaders, inspect, changed) {
@@ -47,12 +47,17 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
     const material = new T.MeshStandardMaterial({ color: c, transparent: true, opacity: .12, roughness: .9 });
     mesh(scene, new T.BoxGeometry(z.w, .025, z.d), material, z.x, -.04, z.z);
     for (const side of [-1, 1]) { box(scene, z.w, .025, .035, c, z.x, -.01, z.z + side * z.d / 2); box(scene, .035, .025, z.d, c, z.x + side * z.w / 2, -.01, z.z); }
-    const item = label(z.name, () => new T.Vector3(z.x, .1, z.z - z.d / 2 + .15), z.level ?? (z.name === 'Staff' ? 'AI staff' : z.name === 'Keeper' ? 'Rules as code' : 'Outbox · Uploads · Supplier'));
+    const item = label(z.name, () => new T.Vector3(z.x, .1, z.z - z.d / 2 - .2), z.level ?? (z.name === 'Staff' ? 'AI staff' : z.name === 'Keeper' ? 'Rules as code' : 'Outbox · Uploads · Supplier'));
     item.el.style.setProperty('--color', c); mats.set(z.name, { material, item });
-    if (z.level && z.name !== 'Inbox') cabinet(z.x - 1.45, z.z - .25, c);
+    if (z.level && z.name !== 'Inbox') {
+      cabinet(z.x - .95, z.z - .25, c);
+      desk(z.x + .55, z.z + .35, true);
+      cylinder(scene, .13, .3, '#e0b49a', z.x + 1, 1.1, z.z + .35);
+      sphere(scene, .2, '#76b895', z.x + 1, 1.4, z.z + .35);
+    }
   }
-  STAFF.forEach((n, i) => { const p = home(n); desk(p.x + .4, p.z - .5); chair(p.x + .4, p.z + .35); });
-  desk(-10, 1, true); cabinet(-11, 3.3, '#83b8d0'); plant(-10, -3.8); plant(-1, 0); plant(11, 3.6);
+  STAFF.forEach((n, i) => { const p = home(n); desk(p.x, p.z - .85); chair(p.x, p.z + .35); });
+  desk(-10, 1, true); cabinet(-11, 3.3, '#83b8d0'); plant(-10, -3.8); plant(-3.9, 0); plant(11, 3.6);
   // Window, wall clock, goal net and outside door are all primitives.
   box(scene, 2.4, 2.5, .13, '#365963', -10, 1.25, -1.6);
   box(scene, 2.1, 1.65, .15, '#88bbc4', -10, 1.55, -1.5);
@@ -80,7 +85,7 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
     for (const x of [-13.4, 13.4]) for (const y of [0, 3.4]) for (const z of [-5.9, 5.9]) points.push(new T.Vector3(x, y, z).applyMatrix4(camera.matrixWorldInverse));
     const minX = Math.min(...points.map(p => p.x)), maxX = Math.max(...points.map(p => p.x));
     const minY = Math.min(...points.map(p => p.y)), maxY = Math.max(...points.map(p => p.y));
-    const aspect = width / height, halfH = Math.max((maxY - minY) / 2, (maxX - minX) / aspect / 2) * 1.06;
+    const aspect = width / height, halfH = Math.max((maxY - minY) / 2, (maxX - minX) / aspect / 2) * 1.015;
     const cx = (maxX + minX) / 2, cy = (maxY + minY) / 2;
     camera.left = cx - halfH * aspect; camera.right = cx + halfH * aspect; camera.top = cy + halfH; camera.bottom = cy - halfH; camera.updateProjectionMatrix();
   }
@@ -111,12 +116,22 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
     ball.visible = !!state.ball;
     if (state.ball) { const b = state.ball, dest = new T.Vector3(b.x, b.y, b.z); const origin = previousBall ?? new T.Vector3(4.4, .3, 0); ball.position.copy(origin).lerp(dest, eased); if (t < 1) ball.position.y += Math.sin(t * Math.PI) * .8; ball.rotation.z = -t * 5; }
     const occupied = [];
-    for (const l of [...labelItems].sort((a, b) => Number(b.type === 'agent') - Number(a.type === 'agent'))) {
+    for (const l of [...labelItems].sort((a, b) => Number(a.type === 'agent') - Number(b.type === 'agent'))) {
       const visible = l !== villainTag || villain.root.visible; l.el.hidden = !visible; l.leader.style.display = visible ? '' : 'none'; if (!visible) continue;
       l.el.classList.toggle('inactive', l.type === 'agent' && l.name !== state.activeAgent && l.name !== 'Keeper');
       const p = project(l.position()), w = l.el.offsetWidth, h = l.el.offsetHeight;
       let x = Math.max(5, Math.min(width - w - 5, p.x - w / 2)), y = Math.max(5, Math.min(height - h - 5, p.y - h));
-      for (let pass = 0; pass < labelItems.length; pass++) { const hit = occupied.find(b => x < b.x + b.w + 4 && x + w + 4 > b.x && y < b.y + b.h + 4 && y + h + 4 > b.y); if (!hit) break; y = Math.max(4, hit.y - h - 5); }
+      const clear = (xx, yy) => xx >= 4 && yy >= 4 && xx + w <= width - 4 && yy + h <= height - 4 && !occupied.some(b => xx < b.x + b.w + 5 && xx + w + 5 > b.x && yy < b.y + b.h + 5 && yy + h + 5 > b.y);
+      if (!clear(x, y)) {
+        const offset = placeOverlay(p, [w, h], { w: width, h: height }, occupied);
+        if (clear(offset.x, offset.y)) { x = offset.x; y = offset.y; }
+        else {
+          let found = false;
+          for (let yy = 5; yy < height - h && !found; yy += h + 6) for (let xx = 5; xx < width - w; xx += 12) {
+            if (clear(xx, yy)) { x = xx; y = yy; found = true; break; }
+          }
+        }
+      }
       l.el.style.left = `${x}px`; l.el.style.top = `${y}px`; occupied.push({ x, y, w, h });
       l.leader.setAttribute('x1', p.x); l.leader.setAttribute('y1', p.y + 7); l.leader.setAttribute('x2', x + w / 2); l.leader.setAttribute('y2', y + h);
     }

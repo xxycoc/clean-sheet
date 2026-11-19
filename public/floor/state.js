@@ -3,17 +3,17 @@ export const LEVELS = ['public', 'internal', 'client-confidential', 'regulated']
 export const COLORS = { public: '#58ce93', internal: '#72b7ef', 'client-confidential': '#f1ba64', regulated: '#f08091' };
 // Highest labels in the shipped workspace, including content-detected labels.
 export const ZONES = [
-  { name: 'Inbox', x: -10, z: 0, w: 3.4, d: 10, level: 'regulated' },
-  { name: 'Clients', x: -5.7, z: -3.5, w: 4.2, d: 2.7, level: 'client-confidential' },
-  { name: 'Finance', x: -5.7, z: 0, w: 4.2, d: 2.7, level: 'regulated' },
-  { name: 'Notes', x: -5.7, z: 3.5, w: 4.2, d: 2.7, level: 'client-confidential' },
-  { name: 'Marketing', x: -1, z: -3.5, w: 4.2, d: 2.7, level: 'public' },
-  { name: 'Admin', x: -1, z: 3.5, w: 4.2, d: 2.7, level: 'regulated' },
-  { name: 'Staff', x: 3, z: 0, w: 3.4, d: 10 },
+  { name: 'Inbox', x: -11, z: 0, w: 3.4, d: 10, level: 'regulated' },
+  { name: 'Clients', x: -7.3, z: -3.5, w: 2.9, d: 2.7, level: 'client-confidential' },
+  { name: 'Finance', x: -7.3, z: 0, w: 2.9, d: 2.7, level: 'regulated' },
+  { name: 'Notes', x: -7.3, z: 3.5, w: 2.9, d: 2.7, level: 'client-confidential' },
+  { name: 'Marketing', x: -3.9, z: -3.5, w: 2.9, d: 2.7, level: 'public' },
+  { name: 'Admin', x: -3.9, z: 3.5, w: 2.9, d: 2.7, level: 'regulated' },
+  { name: 'Staff', x: 1.6, z: 0, w: 7.2, d: 10 },
   { name: 'Keeper', x: 7, z: 0, w: 3.5, d: 10 },
   { name: 'Outside', x: 11, z: 0, w: 3.4, d: 10 },
 ];
-export const home = name => ({ x: 3, z: -4 + STAFF.indexOf(name) * 2 });
+export const home = name => ({ x: [-.9, 1.6, 4.1, .3, 3.1][STAFF.indexOf(name)], z: STAFF.indexOf(name) < 3 ? -2.4 : 3.1 });
 const roomFor = file => ZONES.find(z => z.name.toLowerCase() === String(file ?? '').split('/')[0].toLowerCase());
 const suspicious = e => e.trust === 'untrusted' || e.observed_file?.header?.trust === 'untrusted' ||
   (String(e.file ?? '').startsWith('inbox/') && /lookalike/i.test(e.file));

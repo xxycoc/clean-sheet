@@ -2,3 +2,7 @@
 
 #flat{grid-auto-rows:max-content}.flat-zone{min-width:0}.flat-agent{display:flex;max-width:100%;margin:4px 0}.flat-agent span{overflow-wrap:anywhere;min-width:0}@media(max-width:599px){.flat-agent{width:100%;padding:4px;gap:3px;font-size:10px}.flat-agent svg{width:27px;height:35px}}
 .is-flat{display:flex;flex-direction:column}.is-flat #fallback{position:static;order:-1;flex:none}.is-flat #flat{height:auto;min-height:0;flex:1;padding:12px}.is-flat #card,.is-flat #bubble{position:static;flex:none;margin:0 12px 12px;max-width:calc(100% - 24px)}.is-flat #card{width:calc(100% - 24px);box-shadow:none}.is-flat #bubble{order:1;box-shadow:none}
+
+#card{width:370px;max-width:390px;font-size:16px;border:1px solid var(--tone);border-left-width:6px;background:color-mix(in srgb,var(--tone) 13%,#102630)}#card strong{font-size:15px}#card .message{display:block;max-height:9em;overflow:auto}#card small{font-size:11px}.tag.inactive{opacity:.85}.credit{margin:10px 0 0;color:var(--muted);font-size:11px}@media(min-width:1000px) and (max-height:800px){main{padding:12px 20px}#stage{height:60vh;min-height:360px}.toolbar{margin:8px 0}.caption{padding:8px 0;min-height:42px}.transport{padding:9px 0}#card{width:320px;font-size:14px}}
+
+@media(max-width:599px){#card{max-width:calc(100% - 24px);width:calc(100% - 24px)}}

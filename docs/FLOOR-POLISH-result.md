@@ -1,0 +1,19 @@
+# Floor polish result
+- Widened Staff into a 3 + 2 desk layout; tightened folder rooms to keep the floor footprint.
+- Kept zone labels at back edges; agent labels use clear offsets and collision-free available slots.
+- Added primitive paper desks and potted plants in folder rooms.
+- Tightened camera framing while retaining whole-floor bounds.
+- Enlarged decision cards with decision colours and readable owner messages; scoreboard stays event-driven.
+- Sample autoplays at 1x after one second and loops after three seconds on the final scoreboard.
+- Reduced motion opens the final sample state without autoplay; manual controls remain available.
+- Added public/index.html redirect, relative assets and the requested footer credit.
+- Live uses ?server=<https URL>&token=<owner token>; static mode makes no API request.
+- Rebuilt runtime.js using node scripts/floor-build.js.
+- npm test: 110 passed, 0 failed.
+- Score: Kit 15/15, Extra 6/6, Normal 42/42, zero false alarms.
+- Headless Chrome verified file opening, playback/pause/loop, reduced motion and /clean-sheet/ static hosting.
+- Explicit HTTPS event-stream URL verified using an EventSource mock; remote live delivery unverified.
+- Checks: docs/floor-check/polish-checks.json; screenshots: polish-1920.png and polish-1280.png plus block states.
+- Browser CDN requests fail with ERR_NETWORK_ACCESS_DENIED, so screenshots show the working 2D fallback.
+- Revised 3D geometry, framing and tag separation still need visual verification with CDN access.
+- GitHub Pages deployment was not performed. No git commands, installs or keeper changes.
