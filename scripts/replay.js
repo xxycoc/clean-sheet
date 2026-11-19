@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { EventEmitter } from 'node:events';
@@ -34,7 +35,7 @@ export function replayServer(rows, expected, options = {}) {
   server.publishReplay = event => { history.push(event); publish(event); };
   return server;
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   try {
     if (!process.argv[2]) throw new Error('Usage: node scripts/replay.js runtime/events.jsonl --speed 4');
     const rows = readRows(process.argv[2]);

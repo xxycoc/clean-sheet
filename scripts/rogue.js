@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -58,7 +59,7 @@ export async function runRogue({ http, runtime, ownerToken = process.env.CLEAN_S
     finally { if (temporaryRuntime) rmSync(temporaryRuntime, { recursive: true, force: true }); }
   }
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   try {
     const index = process.argv.indexOf('--http');
     if (index >= 0 && !process.argv[index + 1]) throw new Error('--http requires a URL');

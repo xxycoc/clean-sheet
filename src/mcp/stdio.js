@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
 import { Channel } from './channel.js';
@@ -14,7 +15,7 @@ export async function serveStdio(channel, definitions) {
     }
   } finally { channel.close?.(); }
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   try {
     const channel = new Channel();
     for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { channel.close(); process.exit(0); });

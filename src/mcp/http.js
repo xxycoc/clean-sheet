@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -115,7 +116,7 @@ export function createHttpServer({ channel = new Channel(), replayRows = null, o
   server.channel = channel;
   return server;
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   try {
     const server = createHttpServer();
     server.listen(Number(process.env.PORT ?? 8787), process.env.HOST ?? '127.0.0.1', () => console.error(`Clean Sheet HTTP listening on ${JSON.stringify(server.address())}`));

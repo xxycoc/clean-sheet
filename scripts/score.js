@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { loadFixtures, loadTestJSON } from '../src/fixtures.js';
 import { createKeeper } from '../src/keeper/engine.js';
@@ -41,7 +42,7 @@ export function score() {
   return { rows, normals, labelChecks, kit, extra, normalCorrect, output: lines.join('\n'),
     passed: kit === 15 && extra === 6 && normalCorrect === normals.length && keyCorrect === labelChecks.length && readmeLabel === 'regulated' };
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const result = score();
   console.log(result.output);
   if (!result.passed) process.exitCode = 1;
