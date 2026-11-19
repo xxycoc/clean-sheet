@@ -98,7 +98,7 @@ The same score comes out whether the scenarios run directly against the engine (
 Node 24, no packages to install.
 
 ```powershell
-npm test                 # 131 tests
+npm test                 # 140 tests
 npm run score            # kit + extra scenarios and the everyday set
 npm run rogue            # the same scenarios driven through the MCP server
 node src/mcp/http.js     # tool server, console API and floor on http://127.0.0.1:8787
