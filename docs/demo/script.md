@@ -51,13 +51,13 @@ End card text: **Clean Sheet** · Agents act. Code decides. The owner approves. 
 
 ## 4. Assembly prompt for QwenWork
 
-Upload C1 to C9 into a QwenWork chat, then paste:
+The voiceover is recorded: `demo-clips/voice/C1.m4a`, `C1b.m4a`, `C2.m4a` … `C9.m4a` (about 2:25 in total). `C1b` is the second C1 line ("So every action they take…"). Upload the video clips C1 to C9 and the ten voice files into a QwenWork chat, then paste:
 
 ```
-Edit these clips into one demo video, 2 minutes 50 seconds or less, 1920x1080.
-Follow the shot list and voiceover below exactly: same order, same times, same words.
-- Voiceover: calm, clear English voice, reading the voiceover column word for word.
-- Speed up C2 so it fits its slot; trim the waiting in C3, C4, C5 and C8 so the Keeper's answer is on screen while the voice describes it.
+Edit these clips into one demo video, under 3 minutes, 1920x1080.
+Use my recorded voice files as the timeline, in this order: C1, C1b, C2, C3, C4, C5, C6, C7, C8, C9. Do not generate a voice and do not change my audio, except to even out the volume.
+- Under each voice file, show the video clip with the same number (C1 and C1b both use C1.mp4). Cut or speed up each video clip so it lasts exactly as long as its voice file.
+- Speed up C2; trim the waiting in C3, C4, C5 and C8 so the Keeper's answer is on screen while the voice describes it.
 - When a Keeper decision appears, zoom in gently on the reason text for 2 seconds.
 - Soft background music, low under the voice.
 - No other text overlays except the end card.
