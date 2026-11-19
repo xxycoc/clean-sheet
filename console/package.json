@@ -1,0 +1,13 @@
+{
+  "name": "keeper-console-test",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Keeper Console (test) - dynamic proxy + decision history for the Clean Sheet server",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

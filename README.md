@@ -3,6 +3,7 @@
 </p>
 
 <p align="center">
+  <a href="https://twztsb8c.qwenwork.page/"><img alt="Keeper Console" src="https://img.shields.io/badge/Keeper%20Console-Built%20in%20QwenWork-F5A623?style=for-the-badge"></a>
   <a href="https://xxycoc.github.io/clean-sheet/floor/"><img alt="Live floor" src="https://img.shields.io/badge/Live%20floor-Watch%20the%20Keeper-2BD47D?style=for-the-badge"></a>
   <a href="https://cleansheet.geo.hashmeta.tech"><img alt="Website" src="https://img.shields.io/badge/Website-cleansheet.geo.hashmeta.tech-0b1b2b?style=for-the-badge"></a>
 </p>
@@ -107,6 +108,8 @@ Open **http://127.0.0.1:8787/floor/** for the floor. With no token it plays a re
 
 To connect QwenWork desktop, see [Connect to QwenWork](docs/connect-qwenwork.md).
 
+The owner approves or rejects held actions in the **[Keeper Console](https://twztsb8c.qwenwork.page/)**, which QwenWork built and hosts. It calls the tool server through a small proxy and saves every decision in its own Supabase database. The owner token is entered in the browser and never stored in the code; source in [`console/`](console/).
+
 ## How the Keeper decides
 
 - **Policy:** AvePoint's 19 rules (R01 to R19) plus three of ours: R20, one client's confidential content never goes to another client; R21, a recipient or instruction that only appeared in untrusted or lookalike mail is blocked; R22, an outgoing action inherits the sensitivity of any file content it carries.
@@ -128,6 +131,7 @@ Plain JavaScript ES modules on Node 24, no dependencies. The floor uses three.js
 | `src/mcp/` | MCP tool server (stdio and HTTP), channel, console API |
 | `src/briefing.js` | 60-second morning briefing from one day of the log |
 | `public/floor/` | 3D floor: live, replay and recorded sample modes, 2D fallback |
+| `console/` | Keeper Console, built in QwenWork and hosted on QW Pages: approval queue, decision history in its own database, test results |
 | `scripts/` | Scorer, rogue runner, replay, briefing, floor sample and build |
 | `fixtures/starter-kit/` | AvePoint's starter kit, unchanged |
 | `fixtures/extra/` | Our scenarios S6 and S7 and the lookalike email |

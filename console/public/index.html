@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Keeper Console · Clean Sheet</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="ident">
+      <h1>Keeper Console</h1>
+      <p class="sub">Clean Sheet · Lumen Studio</p>
+    </div>
+    <form class="conn" id="tokenForm" autocomplete="off">
+      <label for="token">Owner token</label>
+      <input id="token" type="password" spellcheck="false" />
+      <button id="saveToken" class="btn" type="submit">Save</button>
+      <span id="connState" class="conn-state" role="status"></span>
+    </form>
+  </header>
+
+  <main>
+    <section class="block" aria-labelledby="qTitle">
+      <div class="block-head">
+        <h2 id="qTitle">Waiting for you</h2>
+        <p class="meta"><span id="queueMeta"></span> <button id="refreshQueue" class="link" type="button">Refresh</button></p>
+      </div>
+      <div id="queueList" class="queue"><p class="muted">Loading…</p></div>
+    </section>
+
+    <section class="block" aria-labelledby="dTitle">
+      <div class="block-head">
+        <h2 id="dTitle">Your decisions</h2>
+        <p class="meta" id="decMeta"></p>
+      </div>
+      <table id="decTable" class="history">
+        <thead>
+          <tr><th>When</th><th>Agent</th><th>Action</th><th>Decision</th><th>Keeper's reason</th></tr>
+        </thead>
+        <tbody id="decBody"><tr><td colspan="5" class="muted">No decisions yet.</td></tr></tbody>
+      </table>
+    </section>
+
+    <section class="block tests" aria-labelledby="sTitle">
+      <h2 id="sTitle">Keeper test results</h2>
+      <div id="scoreTotals" class="muted">Loading…</div>
+      <details class="raw"><summary>Full test output</summary><pre id="scoreRaw"></pre></details>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
