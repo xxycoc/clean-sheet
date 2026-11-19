@@ -1,0 +1,18 @@
+# KEEPER-ANIM result
+- Implemented pure, eased motion tracks: BLOCK 1.6 s, HOLD 1.4 s, ALLOW 1.2 s, within the existing 2.5 s decision hold.
+- Angled the goal toward the unchanged camera; staged and sized the Keeper in front of the frame with bounded reach and a maximum 36-degree body lean.
+- Removed the duplicate agent tag; retained the Keeper / Rules as code zone tag and mesh inspection.
+- BLOCK: ready squash, curved flight/trail, extended glove contact, fading ring/sparks, red card, two landing arcs, pitch-side roll, upright recovery.
+- HOLD: four wrapping tentacles and amber chest glow; pending catches survive bookkeeping, new-task events and refused-release revalidation.
+- Owner release rolls to Outside; rejection drops onto the pitch. ALLOW steps aside, gestures, opens the net, adds a green trail and tick.
+- Reduced motion displays the end pose without animation, including the 3D view when WebGL is available.
+- Rebuilt `public/floor/runtime.js` using `node scripts/floor-build.js`.
+- `npm test`: 139/139 passed, including eight new motion/state tests sampling all five paths at 1 ms intervals.
+- Scores unchanged: Kit 15/15; Extra 6/6; Normal 45/45; zero false alarms.
+- Actual deformed Keeper geometry: 405 sampled poses; minimum Y 0.028, maximum goal-local X 7.670, absolute Z 1.412, maximum Y 1.840. All clear the frame and floor.
+- Headless served-entry screenshots inspected: `../review/keeper-block-0.6.png`, `keeper-block-0.72.png`, `keeper-hold_for_approval-0.6.png`, `keeper-allow-0.65.png`; end/owner/reduced-motion frames are alongside them.
+- Compared with `keeper-save-before.png`: no post through the body, no full-body roll, save ends on the pitch, and only one Keeper tag.
+- Browser checks confirmed owner release/reject endpoints and a stable reduced-motion chest catch.
+- CDN access was blocked. Visual/mesh checks used an existing local three.js 0.185.1 via test-only interception; no library files or fallback were shipped.
+- The import map remains pinned to three.js 0.160.0; rendering with that exact CDN version remains unverified.
+- No git commands, installs, publishing, or visible browser actions were run.
