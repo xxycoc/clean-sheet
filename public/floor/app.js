@@ -95,12 +95,12 @@ function refresh(animate = false) {
   const card = state.card; $('card').hidden = !card;
   if (card) { $('card').replaceChildren(); $('card').style.setProperty('--tone', tone(card.decision)); text('strong', card.decision === 'HOLD_FOR_APPROVAL' ? 'HELD FOR YOUR APPROVAL' : card.decision === 'ALLOW' ? '✓ ALLOW' : card.decision ?? 'WORK', $('card')); text('span', card.owner_message ?? 'Review action', $('card')).className = 'message'; text('small', `${card.rules?.join(' · ') || 'Event record'} → Inspect`, $('card')); }
   $('bubble').hidden = !state.alert; $('bubble').textContent = state.alert ?? '';
-  if (flatMode) { $('card').style.maxHeight = ''; flat(); } else floor?.update(state, animate);
+  if (flatMode) { $('card').style.maxHeight = ''; flat(); } else floor?.update(state, animate && !motion.matches);
   if (!$('drawer').hidden) inspect(selected);
   requestDraw();
 }
 async function chooseView() {
-  const reason = $('stage').clientWidth < 600 ? 'Stage narrower than 600 px' : motion.matches ? 'Reduced motion preference' : failed;
+  const reason = $('stage').clientWidth < 600 ? 'Stage narrower than 600 px' : failed;
   flatMode = !!reason || !floor;
   $('stage').classList.toggle('is-flat', flatMode);
   $('flat').hidden = !flatMode; $('fallback').hidden = !flatMode; $('view').hidden = $('tags').hidden = $('leaders').hidden = flatMode;
@@ -152,7 +152,7 @@ $('log').onchange = async () => {
   catch (e) { $('connection').textContent = `Could not load log: ${e.message}`; }
   $('log').value = '';
 };
-new ResizeObserver(chooseView).observe($('stage')); motion.addEventListener('change', () => { if (motion.matches) { stop(); if (mode === 'sample') index = events.length - 1; } chooseView(); });
+new ResizeObserver(chooseView).observe($('stage')); motion.addEventListener('change', () => { if (motion.matches) stop(); chooseView(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(frame); frame = 0; clearTimeout(timer); timer = null; } else { requestDraw(); schedule(); } });
 window.addEventListener('pagehide', disconnect);
 sample(); chooseView(); if (token && server) live();

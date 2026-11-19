@@ -80,12 +80,12 @@ export function sceneAt(events, index = events.length - 1) {
         if (Object.hasOwn(s.agents, a.agent)) s.agents[a.agent].decision = s.card;
       }
       s.keeper = e.released ? 'allow' : 'hold';
-      s.ball = { id: e.id, phase: e.released ? 'allow' : 'rejected', x: e.released ? 10.5 : 6.7, y: 1, z: .7 };
+      s.ball = { id: e.id, phase: e.released ? 'allow' : 'rejected', ownerReleased: e.released, x: e.released ? 10.5 : 6.7, y: 1, z: .7 };
     }
     if (e.type === 'action.executed' || e.type === 'action.failed') {
       const a = s.actions[e.id] ??= { id: e.id, agent: name };
       a.status = e.type === 'action.failed' ? 'failed' : 'executed'; a.result = e.result;
-      if (e.type === 'action.executed') s.ball = { id: e.id, phase: 'outside', x: 11.2, y: .35, z: .7 };
+      if (e.type === 'action.executed') s.ball = { id: e.id, phase: 'outside', ownerReleased: a.ownerReleased, x: 11.2, y: .35, z: .7 };
       else { s.ball = null; s.card = { ...a?.decision, decision: 'FAILED', owner_message: e.message ?? 'Execution failed.' }; }
     }
     if (e.type === 'task.ended' && agent && agent.taskId === e.task_id) Object.assign(agent, { ...home(name), activity: 'At desk' });
@@ -93,6 +93,11 @@ export function sceneAt(events, index = events.length - 1) {
   }
   const actions = Object.values(s.actions);
   s.queue = actions.filter(a => a.status === 'pending').map(a => ({ id: a.id, agent: a.agent, decision: a.decision }));
+  // Bookkeeping and a new task must not make a pending catch disappear.
+  if ((s.keeper === 'ready' || s.event?.revalidation) && s.queue.length) {
+    const held = s.queue.at(-1);
+    s.keeper = 'hold'; s.ball = { id: held.id, agent: held.agent, phase: 'hold', x: 6.32, y: .87, z: 0 };
+  }
   s.score.saves = actions.filter(a => a.decision?.decision === 'BLOCK').length;
   s.score.held = s.queue.length;
   // A permitted action is not a conceded goal. Count only execution without authorization.

@@ -1,3 +1,4 @@
+import { keeperMotion, KEEPER_YAW, keeperToWorld, worldToKeeper } from './keeper-motion.js';
 import { STAFF, ZONES, COLORS, home, placeOverlay, separateWalkers } from './state.js';
 import { characterFactory } from './characters.js';
 
@@ -50,6 +51,7 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
     mesh(scene, new T.BoxGeometry(z.w, .025, z.d), material, z.x, -.04, z.z);
     for (const side of [-1, 1]) { box(scene, z.w, .025, .035, c, z.x, -.01, z.z + side * z.d / 2); box(scene, .035, .025, z.d, c, z.x + side * z.w / 2, -.01, z.z); }
     const item = label(z.name, () => new T.Vector3(z.x, .1, z.z - z.d / 2 - .2), z.level ?? (z.name === 'Staff' ? 'AI staff' : z.name === 'Keeper' ? 'Rules as code' : 'Outbox · Uploads · Supplier'));
+    if (z.name === 'Keeper') item.el.textContent = 'Keeper · rules as code';
     item.el.style.setProperty('--color', c); mats.set(z.name, { material, item });
     if (z.level && z.name !== 'Inbox') {
       cabinet(z.x - .95, z.z - .25, c);
@@ -66,21 +68,36 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
   box(scene, .08, 1.7, .18, '#e3e9d5', -10, 1.55, -1.4); box(scene, 2.2, .08, .18, '#e3e9d5', -10, 1.55, -1.4);
   const clock = cylinder(scene, .42, .07, '#e1e7d9', -5.7, 1.9, -5.6); clock.rotation.x = Math.PI / 2;
   box(scene, .035, .25, .04, '#283a45', -5.7, 2, -5.54); const hand = box(scene, .23, .035, .04, '#283a45', -5.6, 1.9, -5.54); hand.rotation.z = -.3;
-  for (const z of [-1.6, 1.6]) cylinder(scene, .07, 2.9, '#e6ecde', 8.3, 1.45, z);
-  box(scene, .12, .12, 3.3, '#e6ecde', 8.3, 2.9, 0);
+  const keeperStage = new T.Group(); scene.add(keeperStage);
+  keeperStage.rotation.y = KEEPER_YAW;
+  keeperStage.position.set(8.3 - 8.3 * Math.cos(KEEPER_YAW), 0, 8.3 * Math.sin(KEEPER_YAW));
+  for (const z of [-1.6, 1.6]) cylinder(keeperStage, .07, 2.9, '#e6ecde', 8.3, 1.45, z);
+  box(keeperStage, .12, .12, 3.3, '#e6ecde', 8.3, 2.9, 0);
+  const net = new T.Group(); keeperStage.add(net);
   const netMaterial = new T.LineBasicMaterial({ color: '#99b9af', transparent: true, opacity: .35 });
-  for (let y = 0; y <= 2.8; y += .35) scene.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(8.8, y, -1.6), new T.Vector3(8.8, y, 1.6)]), netMaterial));
-  for (let z = -1.6; z <= 1.6; z += .32) scene.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(8.8, 0, z), new T.Vector3(8.8, 2.9, z)]), netMaterial));
+  for (let y = 0; y <= 2.8; y += .35) net.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(8.8, y, -1.6), new T.Vector3(8.8, y, 1.6)]), netMaterial));
+  for (let z = -1.6; z <= 1.6; z += .32) net.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(8.8, 0, z), new T.Vector3(8.8, 2.9, z)]), netMaterial));
   box(scene, 1.7, 2.8, .2, '#6e9d98', 11.3, 1.4, -2.9); box(scene, 1.35, 2.5, .23, '#172d34', 11.3, 1.25, -2.8); sphere(scene, .07, '#efd3a2', 11.8, 1.2, -2.64);
   const people = Object.fromEntries(STAFF.map((n, i) => [n, makeCharacter(i, scene)]));
-  const keeper = makeCharacter(5, scene); keeper.root.position.set(7.1, 0, .1); keeper.root.rotation.y = -.2; keeper.props.ball.visible = false;
+  const keeper = makeCharacter(5, keeperStage); keeper.root.position.set(7.1, .02, 0); keeper.root.scale.setScalar(1); keeper.root.rotation.y = -Math.PI / 2; keeper.props.ball.visible = false;
   const villain = makeCharacter(7, scene); villain.root.position.set(-10, 0, -1.1); villain.root.visible = false;
-  const keeperTag = label('Keeper', () => keeper.root.position.clone().add(new T.Vector3(0, 2.9, 0)), '', 'agent'); keeperTag.el.classList.add('keeper');
   for (const n of STAFF) { const m = people[n]; m.root.rotation.y = -.08; label(n, () => m.root.position.clone().add(new T.Vector3(0, 2.1, 0)), '', 'agent'); poseCharacter(m, 0, true); }
   const villainTag = label('Untrusted sender', () => villain.root.position.clone().add(new T.Vector3(0, 2.3, 0)), '', 'room');
-  const ball = new T.Group(); scene.add(ball); mesh(ball, new T.SphereGeometry(.23, 24, 16), new T.MeshStandardMaterial({ color: '#f8f5e7' }), 0, 0, 0);
+  const ball = new T.Group(); keeperStage.add(ball); mesh(ball, new T.SphereGeometry(.23, 24, 16), new T.MeshStandardMaterial({ color: '#f8f5e7' }), 0, 0, 0);
   for (let i = 0; i < 6; i++) sphere(ball, .065, '#233542', Math.cos(i * Math.PI / 3) * .19, Math.sin(i * Math.PI / 3) * .19, .1);
-  let state, from = {}, started = 0, duration = 0, width = 1, height = 1, previousBall, previousVillain = false, keeperPose = 0, previousKeeperPose = 0;
+  const glowMaterial = new T.MeshBasicMaterial({ color: '#ffc65c', transparent: true, opacity: 0, depthWrite: false });
+  mesh(ball, new T.SphereGeometry(.29, 20, 12), glowMaterial, 0, 0, 0);
+  const impact = new T.Group(); keeperStage.add(impact);
+  const impactMaterial = new T.MeshBasicMaterial({ color: '#fff1b4', transparent: true, opacity: 0 });
+  mesh(impact, new T.TorusGeometry(.3, .025, 8, 32), impactMaterial, 0, 0, 0).rotation.y = Math.PI / 2;
+  for (let i = 0; i < 6; i++) mesh(impact, new T.SphereGeometry(.045, 8, 6), impactMaterial, 0, Math.cos(i * Math.PI / 3) * .4, Math.sin(i * Math.PI / 3) * .4);
+  const redCard = box(keeperStage, .08, .55, .35, '#ef515b', 6.7, 2.1, .8);
+  const tick = new T.Group(); scene.add(tick); tick.position.set(10.9, 1, -2.3);
+  const tickMaterial = new T.LineBasicMaterial({ color: '#62ed9b' });
+  tick.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(-.2,0,0),new T.Vector3(0,-.2,0),new T.Vector3(.4,.35,0)]),tickMaterial));
+  const trail = Array.from({length: 9}, () => mesh(keeperStage, new T.SphereGeometry(.06, 8, 6), new T.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}), 0, 0, 0));
+  let actionKind = 'ready', actionOrigin = worldToKeeper([4.4,.3,0]), actionStarted = 0, actionAnimate = false;
+  let state, from = {}, started = 0, duration = 0, width = 1, height = 1, previousBall, previousVillain = false;
   function resize() {
     width = canvas.parentElement.clientWidth; height = canvas.parentElement.clientHeight; renderer.setSize(width, height, false);
     const points = [];
@@ -93,11 +110,17 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
   }
   function update(next, animate) {
     from = Object.fromEntries(STAFF.map(n => [n, people[n].root.position.clone()])); previousBall = ball.visible ? ball.position.clone() : null;
-    previousVillain = state?.villain ?? false; previousKeeperPose = keeperPose; state = next; started = performance.now(); duration = animate ? 650 : 0;
+    const nextKind = next.ball?.phase === 'rejected' ? 'reject' : next.ball?.ownerReleased ? 'release' : next.keeper;
+    if (!state || next.ball?.id !== state.ball?.id || nextKind !== actionKind || next.index < state.index) {
+      actionKind = nextKind; actionOrigin = previousBall?.toArray() ?? worldToKeeper([4.4,.3,0]); actionStarted = performance.now(); actionAnimate = animate;
+      if (next.event?.type === 'keeper.decision') actionOrigin = worldToKeeper([4.9,.35,0]);
+    }
+    if (!animate) actionAnimate = false;
+    previousVillain = state?.villain ?? false; state = next; started = performance.now(); duration = animate ? 650 : 0;
     for (const r of state.rooms) if (r.level) { const m = mats.get(r.name); m.material.color.set(COLORS[r.level]); m.item.el.style.setProperty('--color', COLORS[r.level]); m.item.el.querySelector('small').textContent = r.level; }
   }
   const project = p => { const v = p.clone().project(camera); return { x: (v.x + 1) * width / 2, y: (1 - v.y) * height / 2 }; };
-  const goalBounds = new T.Box3(new T.Vector3(8.2, 0, -1.7), new T.Vector3(8.9, 3, 1.7));
+  const goalBounds = new T.Box3().setFromPoints([8.2,8.9].flatMap(x => [0,3].flatMap(y => [-1.7,1.7].map(z => new T.Vector3(...keeperToWorld([x,y,z]))))));
   function screenBounds(bounds) {
     const points = [];
     for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) points.push(project(new T.Vector3(x, y, z)));
@@ -118,8 +141,15 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
     }
     const separated = separateWalkers(STAFF.map(n => ({ x: people[n].root.position.x, z: people[n].root.position.z })), desks);
     STAFF.forEach((n, i) => { people[n].root.position.x = separated[i].x; people[n].root.position.z = separated[i].z; });
-    keeperPose = T.MathUtils.lerp(previousKeeperPose, state.keeper === 'save' ? 2 : state.keeper === 'hold' ? 5.4 : 0, eased);
-    poseCharacter(keeper, keeperPose, true); keeper.props.ball.visible = false;
+    const seconds = actionAnimate ? (now - actionStarted) / 1000 : 10;
+    const km = keeperMotion(actionKind, seconds, actionOrigin);
+    keeper.root.position.set(...km.root);
+    poseCharacter(keeper, 0, true, km); keeper.props.ball.visible = false;
+    net.scale.y = 1 - km.netOpen; net.visible = km.netOpen < .99;
+    redCard.visible = km.card > 0; redCard.scale.setScalar(Math.max(.001, km.card));
+    tick.visible = km.tick > 0; tick.scale.setScalar(Math.max(.001, km.tick));
+    glowMaterial.opacity = km.glow * .22;
+    impact.visible = km.impact > 0; impact.position.set(6.4,.97,1.07); impact.scale.setScalar(1 + (1 - km.impact) * 1.5); impactMaterial.opacity = km.impact;
     for (const [name, m] of mats) {
       const warning = state.alert && state.event?.file?.split('/')[0].toLowerCase() === name.toLowerCase();
       m.material.emissive.set(warning ? '#f1ba64' : '#000000');
@@ -127,7 +157,17 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
     }
     villain.root.visible = state.villain || (previousVillain && t < 1); villain.root.position.x = -10 - (!state.villain ? eased * 2 : 0); poseCharacter(villain, 5.4, true);
     ball.visible = !!state.ball;
-    if (state.ball) { const b = state.ball, dest = new T.Vector3(b.x, b.y, b.z); const origin = previousBall ?? new T.Vector3(4.4, .3, 0); ball.position.copy(origin).lerp(dest, eased); if (t < 1) ball.position.y += Math.sin(t * Math.PI) * .8; ball.rotation.z = -t * 5; }
+    const decisionMotion = ['save','hold','allow','release','reject'].includes(actionKind);
+    if (state.ball) {
+      if (decisionMotion) ball.position.set(...km.ball);
+      else { const b = state.ball; ball.position.copy(previousBall ?? new T.Vector3(...worldToKeeper([4.4,.3,0]))).lerp(new T.Vector3(...worldToKeeper([b.x,b.y,b.z])),eased); }
+      ball.rotation.z = -ball.position.x * 3;
+    }
+    trail.forEach((dot,i) => {
+      dot.visible = decisionMotion && ball.visible && km.trail && actionAnimate;
+      dot.position.set(...keeperMotion(actionKind, Math.max(0, seconds - (i + 1) * .025), actionOrigin).ball);
+      dot.material.color.set(km.netOpen ? '#62ed9b' : '#d3e9ef'); dot.material.opacity = .24 * (1 - i / trail.length);
+    });
     scene.updateMatrixWorld(true);
     const obstacles = [objectBounds(keeper.root), screenBounds(goalBounds)];
     if (ball.visible) obstacles.push(objectBounds(ball));
@@ -155,13 +195,13 @@ export async function createFloor(canvas, tags, leaders, inspect, changed) {
     renderer.render(scene, camera);
     // The dock has a fixed top-right origin and ends above protected scene objects.
     const dockHeight = Math.min(height - 24, ...obstacles.filter(b => b.x + b.w > width - 414).map(b => b.y - 24));
-    return { active: t < 1, occupied: [...occupied, ...obstacles], dockHeight, anchor: project(ball.visible ? ball.position : new T.Vector3(7, 1, 0)) };
+    return { active: t < 1 || (decisionMotion && km.active), occupied: [...occupied, ...obstacles], dockHeight, anchor: project(ball.visible ? ball.getWorldPosition(new T.Vector3()) : new T.Vector3(7, 1, 0)) };
   }
   const ray = new T.Raycaster();
   canvas.addEventListener('click', event => {
     const rect = canvas.getBoundingClientRect(); ray.setFromCamera(new T.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1), camera);
     for (const hit of ray.intersectObjects([ball, keeper.root, ...Object.values(people).map(m => m.root)], true)) {
-      let obj = hit.object; while (obj.parent && obj.parent !== scene) obj = obj.parent;
+      let obj = hit.object; while (obj.parent && obj.parent !== scene && obj.parent !== keeperStage) obj = obj.parent;
       if (obj === ball && ball.visible) { inspect(state.ball?.id); return; }
       if (obj === keeper.root) { inspect('Keeper'); return; }
       const name = STAFF.find(n => people[n].root === obj); if (name) { inspect(name); return; }
