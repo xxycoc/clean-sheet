@@ -1,4 +1,4 @@
-﻿# Demo video: script and shot list
+# Demo video: script and shot list
 
 Target: 2:50, under the 3:00 limit. The final cut is assembled in QwenWork (a rule of the hackathon), then uploaded to YouTube.
 
