@@ -110,6 +110,10 @@ To connect QwenWork desktop, see [Connect to QwenWork](docs/connect-qwenwork.md)
 
 The owner approves or rejects held actions in the **[Keeper Console](https://twztsb8c.qwenwork.page/)**, which QwenWork built and hosts. It calls the tool server through a small proxy and saves every decision in its own Supabase database. The owner token is entered in the browser and never stored in the code; source in [`console/`](console/).
 
+<p align="center"><img src="docs/readme/console.png" alt="Keeper Console: two held deletes of unpaid invoices waiting for approval, the decision history and the test results" width="720"></p>
+
+**Why the Console may show no data when you open it:** the page is always online, but its queue comes from the Keeper's tool server, which runs on the owner's own computer and reaches the Console through a temporary Cloudflare tunnel. That is on purpose: the Keeper sits next to the agents it guards and the owner's files, not in the cloud. When that computer is off, the Console has nothing to show. The screenshot above, and the demo video from 1:46, show it working with the two held deletes from the demo run.
+
 ## How the Keeper decides
 
 - **Policy:** AvePoint's 19 rules (R01 to R19) plus three of ours: R20, one client's confidential content never goes to another client; R21, a recipient or instruction that only appeared in untrusted or lookalike mail is blocked; R22, an outgoing action inherits the sensitivity of any file content it carries.
