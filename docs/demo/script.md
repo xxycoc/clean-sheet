@@ -58,6 +58,7 @@ Edit these clips into one demo video, under 3 minutes, 1920x1080.
 Use my recorded voice files as the timeline, in this order: C1, C1b, C2, C3, C4, C5, C6, C7, C8, C9. Do not generate a voice and do not change my audio, except to even out the volume.
 - Under each voice file, show the video clip with the same number (C1 and C1b both use C1.mp4). Cut or speed up each video clip so it lasts exactly as long as its voice file.
 - Speed up C2; trim the waiting in C3, C4, C5 and C8 so the Keeper's answer is on screen while the voice describes it.
+- C7 is a 60-second briefing video with its own voice. Mute it, do not speed it up, and use only two parts: 0:00 to 0:07 (title, then the Blocked 2 / Held 2 / Allowed 5 numbers) and 0:20 onwards (the list of each request) to fill the rest of the C7 voice file.
 - When a Keeper decision appears, zoom in gently on the reason text for 2 seconds.
 - Soft background music, low under the voice.
 - No other text overlays except the end card.
